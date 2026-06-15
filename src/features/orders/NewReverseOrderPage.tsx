@@ -128,6 +128,41 @@ export const NewReverseOrderPage: React.FC = () => {
   const selectedPickup = pickups.find((p) => p.id === pickupId) ?? null;
   const [pickupDrawer, setPickupDrawer] = useState<{ mode: 'create' | 'edit'; id?: string } | null>(null);
 
+  // Load actual warehouses on mount
+  useEffect(() => {
+    import('../../services/warehouseApi').then(({ warehouseApi }) => {
+      warehouseApi.getWarehouses().then((whList: any[]) => {
+        if (whList && whList.length > 0) {
+          const mapped: SavedPickup[] = whList.map(wh => ({
+            id: String(wh.id || wh.warehouse_id),
+            name: wh.name || wh.warehouse_name || '',
+            tag: 'Warehouse',
+            address: wh.address_1 || wh.address || '',
+            city: wh.city || '',
+            state: wh.state || '',
+            pincode: wh.zip || wh.pincode || '',
+            country: 'India',
+            contactPhone: wh.phone || '',
+            contactPersonName: wh.contact_name || '',
+            email: wh.email || '',
+            supportPhone: wh.phone || '',
+            isVerified: true,
+            isPrimary: false,
+            hideWarehouseAddress: false,
+            hideWarehousePhone: false,
+            hideCustomerPhone: false,
+            hideProductDetails: false,
+            returnSameAsPickup: true,
+          }));
+          setPickups(mapped);
+          if (mapped.length > 0 && !mapped.find(p => p.id === pickupId)) {
+            setPickupId(mapped[0].id);
+          }
+        }
+      });
+    });
+  }, []);
+
   /* ─── Customer ───────────────────────────────────────────── */
   const [customers, setCustomers] = useState<SavedCustomer[]>(SAVED_CUSTOMERS);
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -211,7 +246,8 @@ export const NewReverseOrderPage: React.FC = () => {
 
   /* ─── Handlers ───────────────────────────────────────────── */
 
-  const handlePickupSave = (next: SavedPickup) => {
+  const handlePickupSave = async (next: SavedPickup) => {
+    // 1. Instantly update the UI so the user sees it immediately
     setPickups((prev) => {
       const i = prev.findIndex((p) => p.id === next.id);
       if (i >= 0) {
@@ -224,6 +260,58 @@ export const NewReverseOrderPage: React.FC = () => {
     setPickupId(next.id);
     setPickupDrawer(null);
     showToast(`✓ Pickup "${next.name}" ${pickupDrawer?.mode === 'edit' ? 'updated' : 'added'}`);
+
+    // 2. Fire the API call in the background to save it permanently!
+    try {
+      const { warehouseApi } = await import('../../services/warehouseApi');
+      const payload = {
+        name: next.name,
+        contact_name: next.contactPersonName || next.name,
+        email: next.email || 'warehouse@test.com',
+        phone: next.contactPhone.replace('+91 ', ''),
+        address_1: next.address,
+        address_2: "",
+        city: next.city,
+        state: next.state,
+        zip: next.pincode,
+        password: "auto"
+      };
+      await warehouseApi.createWarehouse(payload);
+      
+      // 3. Re-sync the latest accurate list from the backend
+      const whList = await warehouseApi.getWarehouses();
+      if (whList && whList.length > 0) {
+        const mapped: SavedPickup[] = whList.map((wh: any) => ({
+          id: String(wh.id || wh.warehouse_id),
+          name: wh.name || wh.warehouse_name || '',
+          tag: 'Warehouse',
+          address: wh.address_1 || wh.address || '',
+          city: wh.city || '',
+          state: wh.state || '',
+          pincode: wh.zip || wh.pincode || '',
+          country: 'India',
+          contactPhone: wh.phone || '',
+          contactPersonName: wh.contact_name || '',
+          email: wh.email || '',
+          supportPhone: wh.phone || '',
+          isVerified: true,
+          isPrimary: false,
+          hideWarehouseAddress: false,
+          hideWarehousePhone: false,
+          hideCustomerPhone: false,
+          hideProductDetails: false,
+          returnSameAsPickup: true,
+        }));
+        setPickups(mapped);
+        
+        const newlyCreated = mapped.find(m => m.name.toLowerCase() === next.name.toLowerCase());
+        if (newlyCreated) {
+           setPickupId(newlyCreated.id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to save pickup to backend", err);
+    }
   };
 
   const handlePackageSave = (next: SavedPackage) => {

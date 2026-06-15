@@ -51,6 +51,17 @@ const Ndr = (
   </svg>
 );
 
+const WeightRecon = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Balance / scale icon — represents weight reconciliation */}
+    <path d="M12 3V21" stroke="#FFF7ED" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M5 6H19" stroke="#FFF7ED" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M9 21H15" stroke="#FFF7ED" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M2.5 13C2.5 13 3.5 9 5.5 9C7.5 9 8.5 13 8.5 13C8.5 13 8 14.5 5.5 14.5C3 14.5 2.5 13 2.5 13Z" stroke="#FFF7ED" strokeWidth="1.5" strokeLinejoin="round"/>
+    <path d="M15.5 13C15.5 13 16.5 9 18.5 9C20.5 9 21.5 13 21.5 13C21.5 13 21 14.5 18.5 14.5C16 14.5 15.5 13 15.5 13Z" stroke="#FFF7ED" strokeWidth="1.5" strokeLinejoin="round"/>
+  </svg>
+);
+
 const Info = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M12 1.5C14.78 1.5 17.46 2.61 19.42 4.58C21.39 6.54 22.5 9.22 22.5 12C22.5 14.78 21.39 17.46 19.42 19.42C17.46 21.39 14.78 22.5 12 22.5C9.22 22.5 6.54 21.39 4.58 19.42C2.61 17.46 1.5 14.78 1.5 12C1.5 9.22 2.61 6.54 4.58 4.58C6.54 2.61 9.22 1.5 12 1.5Z" stroke="#FFF7ED"/>
@@ -104,11 +115,10 @@ export const NAV_CONFIG: NavConfigItem[] = [
   },
   {
     id: 'orders',
-    label: 'Orders',
+    label: 'Orders & Pickups',
     icon: Orders,
     children: [
-      { id: 'orders-list', label: 'All Orders', path: '/orders' },
-      { id: 'orders-new-forward', label: 'New Forward Order', path: '/orders/new-forward' },
+      { id: 'orders-list', label: 'Orders', path: '/orders' },
       { id: 'orders-pickup', label: 'Pickup Request', path: '/orders/pickup-request' },
     ],
   },
@@ -119,6 +129,14 @@ export const NAV_CONFIG: NavConfigItem[] = [
     path: '/ndr',
     badge: 28,
     badgeAriaLabel: '28 non-delivery reports requiring action',
+  },
+  {
+    id: 'weight-reconciliation',
+    label: 'Weight Reconciliation',
+    icon: WeightRecon,
+    path: '/weight-reconciliation',
+    badge: 28,
+    badgeAriaLabel: '28 weight disputes need action',
   },
   {
     id: 'info',

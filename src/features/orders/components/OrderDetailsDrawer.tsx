@@ -48,7 +48,7 @@ export const OrderDetailsDrawer: React.FC<OrderDetailsDrawerProps> = ({
      so they get a synthetic "Pending" pill that mirrors the table's
      NEW/OLD tag visually. */
   const statusMeta: { label: string; variant: StatusVariant } = ship
-    ? SHIPMENT_STATUS_META[ship.status]
+    ? (SHIPMENT_STATUS_META[ship.status as keyof typeof SHIPMENT_STATUS_META] || { label: String(ship.status).toUpperCase(), variant: 'grey' })
     : { label: order!.age === 'NEW' ? 'Pending (New)' : 'Pending', variant: 'amber' };
 
   const paymentBadgeClass = s.payment.mode === 'COD' ? 'cod' : 'prepaid';
@@ -469,7 +469,7 @@ interface ActivityEvent {
  */
 function buildActivityLog(s: Shipment): ActivityEvent[] {
   const events: ActivityEvent[] = [];
-  const meta = SHIPMENT_STATUS_META[s.status];
+  const meta = SHIPMENT_STATUS_META[s.status as keyof typeof SHIPMENT_STATUS_META] || { label: String(s.status).toUpperCase() };
 
   events.push({
     cur: true,

@@ -4,6 +4,7 @@ import {
   AGE_STATUSES,
   CHANNELS,
   DATE_RANGE_OPTIONS,
+  EDD_RANGE_OPTIONS,
   PAYMENT_MODES,
   PICKUP_LOCATIONS,
 } from '../data/ordersData';
@@ -15,7 +16,7 @@ import {
   RTO_STATUSES,
   TRANSPORT_MODES,
 } from '../data/shipmentsData';
-import type { OrderTabId } from '../types';
+import type { FilterOption, OrderTabId } from '../types';
 
 /**
  * Unified filter state shared by the Pending tab + every Shipment tab.
@@ -83,16 +84,20 @@ function hasAnyFilter(s: OrdersFilterState): boolean {
   );
 }
 
-/** Per-tab date chip label — the chip itself is shared but each tab
- *  re-frames the meaning of the underlying date range. */
-const DATE_CHIP_LABEL: Record<OrderTabId, string> = {
-  pending:           'Date',
-  'ready-to-ship':   'Date',
-  'ready-to-pickup': 'Manifested',
-  'in-transit':      'EDD',
-  delivered:         'Delivered',
-  rto:               'RTO Date',
-  all:               'Date',
+/**
+ * Per-tab date chip configuration. Different tabs re-frame the same
+ * underlying `dateRange` field with their own label + option set —
+ * Pending uses the calendar windows in `DATE_RANGE_OPTIONS`, In-Transit
+ * uses the period-relative buckets in `EDD_RANGE_OPTIONS`, etc.
+ */
+const DATE_CHIP_CONFIG: Record<OrderTabId, { label: string; options: FilterOption[] }> = {
+  pending:           { label: 'Date',       options: DATE_RANGE_OPTIONS },
+  'ready-to-ship':   { label: 'Date',       options: DATE_RANGE_OPTIONS },
+  'ready-to-pickup': { label: 'Manifested', options: DATE_RANGE_OPTIONS },
+  'in-transit':      { label: 'EDD',        options: EDD_RANGE_OPTIONS },
+  delivered:         { label: 'DOD',        options: DATE_RANGE_OPTIONS },
+  rto:               { label: 'RTO Date',   options: DATE_RANGE_OPTIONS },
+  all:               { label: 'Date',       options: DATE_RANGE_OPTIONS },
 };
 
 /**
@@ -117,11 +122,12 @@ export const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({
   const set = <K extends keyof OrdersFilterState>(key: K, value: OrdersFilterState[K]) =>
     onChange({ ...state, [key]: value });
 
+  const dateChipCfg = DATE_CHIP_CONFIG[tab];
   const DateChip = (
     <FilterChip
       mode="single"
-      label={DATE_CHIP_LABEL[tab]}
-      options={DATE_RANGE_OPTIONS}
+      label={dateChipCfg.label}
+      options={dateChipCfg.options}
       value={state.dateRange}
       onChange={(v) => set('dateRange', v ?? '17-03_16-04')}
     />
@@ -234,7 +240,6 @@ export const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({
       {tab === 'pending' && (
         <>
           {PickupChip}
-          {PaymentChip}
           <FilterChip
             mode="multi"
             label="Channel"
@@ -243,6 +248,7 @@ export const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({
             countNoun="channels"
             onChange={(values) => set('channels', values)}
           />
+          {PaymentChip}
           <FilterChip
             mode="single"
             label="Status"
@@ -267,7 +273,6 @@ export const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({
           {statusChipFor('in-transit')}
           {PickupChip}
           {TransportChip}
-          {PaymentChip}
         </>
       )}
 
@@ -291,10 +296,10 @@ export const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({
 
       {tab === 'all' && (
         <>
-          {statusChipFor('all')}
           {PickupChip}
           {TransportChip}
           {PaymentChip}
+          {statusChipFor('all')}
         </>
       )}
 

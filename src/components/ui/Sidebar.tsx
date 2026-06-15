@@ -9,6 +9,7 @@ import {
   type NavSubItem,
 } from '../../data/navConfig';
 import { ndrApi } from '../../services/ndrApi';
+import { weightReconciliationApi } from '../../services/weightReconciliationApi';
 
 /* Single timing source — mirrors --nav-dur in sidebar.css */
 const NAV_DUR = 200;
@@ -28,6 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onMobileClose }) =
   const [open, setOpen] = useState(false);              // desktop hover-expand
   const [openSubId, setOpenSubId] = useState<string | null>(null);
   const [ndrCount, setNdrCount] = useState<number | null>(null);
+  const [weightRecoCount, setWeightRecoCount] = useState<number | null>(null);
 
   const wasOpenRef = useRef(false);
   /* Set when the user click-opens a specific dropdown from the collapsed rail —
@@ -117,17 +119,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onMobileClose }) =
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  /* ─── Fetch dynamic NDR count ────────────────────────────────── */
+  /* ─── Fetch dynamic counts ────────────────────────────────── */
   useEffect(() => {
-    const fetchNdrCount = async () => {
+    const fetchCounts = async () => {
       try {
         const records = await ndrApi.fetchNdrList({ dateRange: 'last30' });
         setNdrCount(records.length);
       } catch (err) {
         console.error('Failed to fetch NDR count', err);
       }
+      try {
+        const wrRecords = await weightReconciliationApi.fetchRecords({ dateRange: 'last30' });
+        // Setting it to actionable records count (open state) or total count?
+        // Usually, badge represents actionable items. Let's use records.length.
+        setWeightRecoCount(wrRecords.length);
+      } catch (err) {
+        console.error('Failed to fetch Weight Reco count', err);
+      }
     };
-    fetchNdrCount();
+    fetchCounts();
   }, []);
 
   /* Cleanup on unmount */
@@ -217,9 +227,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onMobileClose }) =
       >
         <span className="nav-ico">{item.icon}</span>
         <span className="nav-lbl">{item.label}</span>
-        {(item.badge !== undefined || (item.id === 'ndr' && ndrCount !== null)) && (
+        {(item.badge !== undefined || (item.id === 'ndr' && ndrCount !== null) || (item.id === 'weight-reconciliation' && weightRecoCount !== null)) && (
           <span className="nav-badge" aria-label={item.badgeAriaLabel ?? `${item.badge}`}>
-            {item.id === 'ndr' && ndrCount !== null ? ndrCount : item.badge}
+            {item.id === 'ndr' && ndrCount !== null
+              ? ndrCount
+              : item.id === 'weight-reconciliation' && weightRecoCount !== null
+                ? weightRecoCount
+                : item.badge}
           </span>
         )}
         <span className="nav-tip" role="tooltip">{item.label}</span>

@@ -6,8 +6,9 @@ import OrdersTab from './tabs/OrdersTab';
 import NdrTab from './tabs/NdrTab';
 import RtoTab from './tabs/RtoTab';
 import { TOP_KPIS as STATIC_TOP_KPIS } from './data/dashboardData';
+import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../services/dashboardApi';
-import { ordersApi } from '../../services/ordersApi';
+import { ordersApi, getDateRangeParams } from '../../services/ordersApi';
 
 type TabId = 'orders' | 'ndr' | 'rto';
 
@@ -28,15 +29,32 @@ export const DashboardPage: React.FC = () => {
   const [notificationMsg, setNotificationMsg] = useState<React.ReactNode>(
     <>Action needed: <b>Loading...</b></>
   );
+  const [datePreset, setDatePreset] = useState<string>('Last Week');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchDynamicData = async () => {
       try {
+        let dateRangeParam = 'last7';
+        if (datePreset === 'Last 2 Weeks') dateRangeParam = 'last14';
+        if (datePreset === 'Last Month') dateRangeParam = 'lastMonth';
+        if (datePreset === 'Last Quarter') dateRangeParam = 'last90';
+        
+        // Ensure last14 is supported or handled
+        const dateFilters = getDateRangeParams(dateRangeParam === 'last14' ? 'last30' : dateRangeParam); // fallback for last14 to last30 just in case, but we can update ordersApi if needed
+        if (datePreset === 'Last 2 Weeks') {
+          const now = new Date();
+          const start = new Date();
+          start.setDate(now.getDate() - 14);
+          start.setHours(0, 0, 0, 0);
+          dateFilters.start_date = Math.floor(start.getTime() / 1000);
+        }
+
         const [statsData, notifData, pendingOrders, pickups] = await Promise.all([
-          dashboardApi.fetchDashboardStats(),
-          dashboardApi.fetchNotifications(),
-          ordersApi.fetchPendingOrders({}),
-          ordersApi.fetchShipments('ready-to-pickup', {})
+          dashboardApi.fetchDashboardStats(dateFilters),
+          dashboardApi.fetchNotifications(), // Notifications might not need date filter or doesn't support it
+          ordersApi.fetchPendingOrders({ dateRange: dateRangeParam } as any),
+          ordersApi.fetchShipments('ready-to-pickup', { dateRange: dateRangeParam } as any)
         ]);
 
         const pendingShipmentCount = pendingOrders.length;
@@ -45,10 +63,10 @@ export const DashboardPage: React.FC = () => {
         const weightDisputes = notifData?.weight?.total_weight_disputes || 0;
 
         setKpis([
-          { lbl: 'Pending Shipment', n: pendingShipmentCount.toString(), sub: 'awaiting dispatch', sev: 'med', cta: 'Ship Now', tip: 'Orders ready to ship' },
-          { lbl: 'Pending Pickup', n: pendingPickupCount.toString(), sub: 'pickups scheduled', sev: 'med', cta: 'Book Now', tip: 'Manifested but not picked up' },
-          { lbl: 'Critical NDR Action Required', n: ndrCount.toString(), sub: 'at RTO risk', sev: 'high', cta: 'Resolve', tip: 'Non-delivery reports needing action' },
-          { lbl: 'Weight Dispute', n: weightDisputes.toString(), sub: 'in penalties', sev: 'low', cta: 'Resolve', tip: 'Courier weight mismatch' },
+          { lbl: 'Pending Shipment', n: pendingShipmentCount.toString(), sub: 'awaiting dispatch', sev: 'med', cta: 'Ship Now', tip: 'Orders ready to ship', onClickCTA: () => navigate('/orders?tab=pending') },
+          { lbl: 'Pending Pickup', n: pendingPickupCount.toString(), sub: 'pickups scheduled', sev: 'med', cta: 'Book Now', tip: 'Manifested but not picked up', onClickCTA: () => navigate('/orders/pickup-request') },
+          { lbl: 'Critical NDR Action Required', n: ndrCount.toString(), sub: 'at RTO risk', sev: 'high', cta: 'Resolve', tip: 'Non-delivery reports needing action', onClickCTA: () => navigate('/ndr') },
+          { lbl: 'Weight Dispute', n: weightDisputes.toString(), sub: 'in penalties', sev: 'low', cta: 'Resolve', tip: 'Courier weight mismatch', onClickCTA: () => navigate('/weight-reconciliation') },
         ]);
 
         const totalShipments = statsData?.total_shipments || 0;
@@ -79,7 +97,7 @@ export const DashboardPage: React.FC = () => {
       }
     };
     fetchDynamicData();
-  }, []);
+  }, [datePreset, navigate]);
 
   return (
     <div className="page">
@@ -89,7 +107,7 @@ export const DashboardPage: React.FC = () => {
           <div className="dash-ph-title">Dashboard</div>
           <div className="dash-ph-sub">Last updated just now</div>
         </div>
-        <DateRangeDropdown />
+        <DateRangeDropdown defaultPreset={datePreset as any} onChange={setDatePreset} />
       </div>
 
       {/* ── Quick Actions strip + alert ─────────────────────────────── */}
@@ -123,9 +141,9 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* ── Active tab content ──────────────────────────────────────── */}
-      {activeTab === 'orders' && <OrdersTab />}
-      {activeTab === 'ndr'    && <NdrTab />}
-      {activeTab === 'rto'    && <RtoTab />}
+      {activeTab === 'orders' && <OrdersTab datePreset={datePreset} />}
+      {activeTab === 'ndr'    && <NdrTab datePreset={datePreset} />}
+      {activeTab === 'rto'    && <RtoTab datePreset={datePreset} />}
     </div>
   );
 };

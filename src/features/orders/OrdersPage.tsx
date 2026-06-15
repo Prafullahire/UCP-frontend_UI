@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
 import OrdersFilterBar, {
@@ -89,9 +89,17 @@ export const OrdersPage: React.FC = () => {
   const toast = useReportsStore((s) => s.toast);
 
   /* ─── Tab + filter state ─────────────────────────────────── */
-  const [activeTab, setActiveTab] = useState<OrderTabId>('pending');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab') as OrderTabId | null;
+  const [activeTab, setActiveTab] = useState<OrderTabId>(urlTab || 'pending');
   const [filters, setFilters] = useState<OrdersFilterState>(initialPendingFilters);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (urlTab && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [urlTab]);
 
   /* ─── Active KPI bucket per tab ────────────────────────────
      One bucket map keyed by tab id keeps every tab's KPI filter
@@ -292,6 +300,9 @@ export const OrdersPage: React.FC = () => {
 
   const handleMarkReady = (s: Shipment) =>
     showToast(`✅ ${s.id} marked ready for pickup`);
+
+  const handlePrintLabel = (s: Shipment) =>
+    showToast(`🖨️ Printing label for ${s.id} — coming soon`);
 
   const handlePrintInvoice = async (o: any) => {
     showToast(`🖨️ Generating dynamic invoice for ${o.id}...`);
@@ -544,6 +555,7 @@ export const OrdersPage: React.FC = () => {
   /* Tab change resets selection + per-tab KPI buckets so each tab starts fresh. */
   const handleTabChange = (id: OrderTabId) => {
     setActiveTab(id);
+    setSearchParams({ tab: id });
     setSelected(new Set());
     setPendingBucket('all');
     setShipmentBucket('all');
@@ -691,21 +703,11 @@ export const OrdersPage: React.FC = () => {
           onToggleSelect={toggleSelect}
           onToggleSelectAll={toggleSelectAll}
           onPrintInvoice={handlePrintInvoice}
-          onEditOrder={handleEditOrder}
-          onAddTag={openAddTag}
+          onPrintLabel={handlePrintLabel}
           onCloneOrder={handleCloneOrder}
           onCancelOrder={openCancel}
           onOrderIdClick={(s) => {
-            /* On the All Orders tab, the cell renders an explicit
-               "View Details" hyperlink and clicking either the order id
-               or the link should open the read-only details drawer.
-               Other lifecycle tabs keep their existing toast behaviour
-               until each one gets its own detail view. */
-            if (activeTab === 'all') {
-              setViewOrderFor(s);
-            } else {
-              showToast(`Opening shipment ${s.id} detail — coming soon`);
-            }
+            setViewOrderFor(s);
           }}
           onPrimaryAction={handleMarkReady}
           onDownloadPO={handleDownloadPO}
@@ -718,6 +720,7 @@ export const OrdersPage: React.FC = () => {
       {/* ── Overlays ───────────────────────────────────────── */}
       {drawerOpen && (
         <MoreFiltersDrawer
+          tab={activeTab}
           state={filters}
           availableTags={tagPool}
           onClose={() => setDrawerOpen(false)}

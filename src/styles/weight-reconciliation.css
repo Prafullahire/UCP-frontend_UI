@@ -1,0 +1,461 @@
+/* ──────────────────────────────────────────────────────────────
+   XpressBees Sellportal — Weight Reconciliation module
+   Visual language inherits from reports.css + orders.css + ndr.css
+   (`--orange`, `--ink`, `--surface`, `--mono`, …). Adds only
+   classes prefixed with `.wr-` for elements that don't already
+   live inside the Orders / NDR module CSS.
+   ────────────────────────────────────────────────────────────── */
+
+/* ── Tab count chip (`<x records>` next to each tab label) ─────────
+      Mirrors the prototype's `.tab-cnt` pill. Uses the orange tint
+      for the active tab to match the underline accent. */
+.wr-tab-cnt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 17px;
+  padding: 0 5px;
+  margin-left: 7px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--s3);
+  color: var(--ink3);
+  font-family: var(--font);
+}
+.wr-tab-cnt.on { background: var(--ol); color: var(--orange); }
+
+/* ── Info banner — dispute deadline reminder ───────────────────── */
+.wr-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--al);
+  border: 1px solid var(--am);
+  border-radius: 9px;
+  margin-bottom: 16px;
+}
+.wr-info-banner > svg {
+  width: 15px;
+  height: 15px;
+  color: var(--amber);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.wr-info-banner-txt {
+  font-size: 12px;
+  color: var(--amber);
+  line-height: 1.5;
+}
+.wr-info-banner-txt b { font-weight: 700; color: var(--amber); }
+
+/* ── Table row decorations (extend `.ord-tbl`) ─────────────────── */
+.ord-tbl tbody tr.wr-row td .tdi { padding: 13px 14px; transition: background .1s; }
+.ord-tbl tbody tr.wr-row:hover td .tdi { background: var(--s2); }
+.ord-tbl tbody tr.wr-row td { padding: 0; vertical-align: top; }
+
+/* Priority left-border: red for "0 day(s) left", amber for "1 day",
+   green for accepted/closed rows. */
+.ord-tbl tbody tr.wr-pri-urgent td:first-child .tdi { border-left: 3px solid var(--red);    padding-left: 11px; }
+.ord-tbl tbody tr.wr-pri-warn   td:first-child .tdi { border-left: 3px solid var(--amber);  padding-left: 11px; }
+.ord-tbl tbody tr.wr-pri-ok     td:first-child .tdi { border-left: 3px solid var(--green);  padding-left: 11px; }
+
+/* Cell typography — date / awb / order id */
+.wr-cell-date {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.wr-awb {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+  text-align: left;
+}
+.wr-awb:hover { text-decoration: underline; }
+.wr-oid {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--blue);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.wr-oid:hover { color: var(--orange); }
+
+/* Entered-weight breakdown (4-row label/value list) */
+.wr-wd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--ink2);
+  line-height: 1.55;
+  min-width: 158px;
+}
+.wr-wd-l { color: var(--ink3); font-weight: 600; }
+.wr-wd-v { color: var(--ink); font-weight: 500; }
+
+/* Applied weight + discrepancy */
+.wr-aw {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.wr-aw-v {
+  font-family: var(--mono);
+  font-weight: 700;
+  margin-left: 4px;
+}
+.wr-disc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.wr-disc svg { width: 10px; height: 10px; }
+.wr-disc-up    { background: var(--rl); color: var(--red);   }
+.wr-disc-match { background: var(--gl); color: var(--green); }
+
+/* Charges */
+.wr-wc { display: flex; flex-direction: column; gap: 2px; }
+.wr-wc-line {
+  font-size: 11px;
+  color: var(--ink2);
+  display: inline-flex;
+  gap: 4px;
+}
+.wr-wc-l { color: var(--ink3); }
+.wr-wc-v { font-weight: 600; color: var(--ink); font-family: var(--mono); }
+.wr-charged-yes,
+.wr-charged-no {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  width: fit-content;
+}
+.wr-charged-no  { background: var(--s3); color: var(--ink3); }
+.wr-charged-yes { background: var(--al); color: var(--amber); }
+
+/* Product cell — clamp long names */
+.wr-prod {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status column — Accept / Reject CTAs + deadline / state pill */
+.wr-status-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  min-width: 200px;
+}
+.wr-act-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+/* Reject button — same `.ndr-ab.ghost` recipe but with red accent on
+   hover so the destructive intent reads at a glance. */
+.ndr-ab.wr-ab-reject { color: var(--red); border-color: var(--rm); }
+.ndr-ab.wr-ab-reject:hover { background: var(--rl); border-color: var(--red); color: var(--red); }
+
+/* Deadline counter under the action buttons */
+.wr-deadline { font-size: 10px; font-weight: 700; white-space: nowrap; }
+.wr-dl-urgent { color: var(--red);   }
+.wr-dl-warn   { color: var(--amber); }
+.wr-dl-ok     { color: var(--green); }
+
+/* Settled-state pills (Accepted / In Dispute / Closed) — replace the
+   action buttons once the row has reached a terminal state. */
+.wr-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.wr-state-pill svg { width: 11px; height: 11px; }
+.wr-state-accepted { background: var(--gl); color: var(--green); }
+.wr-state-open     { background: var(--bl); color: var(--blue);  }
+.wr-state-closed   { background: var(--s3); color: var(--ink2);  }
+
+/* Empty state inside the grid */
+.wr-empty {
+  text-align: center;
+  padding: 60px 24px !important;
+}
+.wr-empty-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.wr-empty-sub { font-size: 12px; color: var(--ink3); }
+
+/* ── Modal shell — used by Accept + Reject (mirrors `.ord-mod*`)
+      Local to this module so the Accept callout / Reject form fields
+      can keep their bespoke spacing without forking the orders modal. */
+.wr-mod-ov {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 5, .55);
+  z-index: 700;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 20px;
+  overflow-y: auto;
+}
+.wr-mod {
+  background: var(--surface);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 640px;
+  margin: auto;
+  overflow: hidden;
+  font-family: var(--font);
+  animation: wrModalPop .22s cubic-bezier(.34, 1.56, .64, 1);
+  box-shadow: var(--shadow-lg);
+}
+@keyframes wrModalPop {
+  from { transform: scale(.96) translateY(10px); opacity: 0; }
+  to   { transform: scale(1) translateY(0);     opacity: 1; }
+}
+.wr-mod-hdr {
+  padding: 22px 26px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wr-mod-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -.3px;
+}
+.wr-mod-sub {
+  font-size: 12px;
+  color: var(--ink3);
+  margin-top: 3px;
+}
+.wr-mod-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--s2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--ink2);
+  flex-shrink: 0;
+  transition: all .12s;
+  font-family: var(--font);
+}
+.wr-mod-close:hover { background: var(--s3); color: var(--ink); }
+.wr-mod-body { padding: 20px 26px; }
+.wr-mod-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.wr-mod-row.one { grid-template-columns: 1fr; }
+.wr-mod-field { display: flex; flex-direction: column; gap: 5px; }
+.wr-mod-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink2);
+}
+.wr-mod-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 9px 12px;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--mono);
+}
+.wr-mod-input {
+  width: 100%;
+  height: 40px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--s2);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.wr-mod-input:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--ol);
+  background: var(--surface);
+}
+.wr-mod-input::placeholder { color: var(--ink3); }
+
+.wr-mod-textarea {
+  width: 100%;
+  min-height: 88px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--s2);
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+  transition: border-color .15s, box-shadow .15s;
+}
+.wr-mod-textarea:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--ol);
+  background: var(--surface);
+}
+.wr-mod-textarea::placeholder { color: var(--ink3); }
+
+.wr-mod-select {
+  width: 100%;
+  height: 40px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0 28px 0 12px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--s2)
+    url("data:image/svg+xml,%3Csvg width='10' height='6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239B998F' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+}
+.wr-mod-select:focus { border-color: var(--orange); }
+.wr-mod-hint {
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.wr-mod-ft {
+  padding: 14px 26px;
+  border-top: 1px solid var(--border);
+  background: var(--s2);
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+/* Accept-confirm callout — green pill that lists the order id +
+   applied weight + charges. */
+.wr-accept-callout {
+  padding: 18px;
+  background: var(--gl);
+  border: 1px solid var(--gm);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.wr-accept-h {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  margin-bottom: 4px;
+}
+.wr-accept-h span { font-family: var(--mono); }
+.wr-accept-p {
+  font-size: 12px;
+  color: var(--green);
+  line-height: 1.5;
+}
+.wr-accept-p b { font-family: var(--mono); }
+.wr-accept-note {
+  font-size: 12px;
+  color: var(--ink2);
+  line-height: 1.6;
+  padding: 12px 14px;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Evidence upload zone (in the Reject / Raise Dispute modal) */
+.wr-upload-zone {
+  display: block;
+  border: 2px dashed #8EAFF0;
+  border-radius: 9px;
+  padding: 18px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+  background: #F7FBFF;
+}
+.wr-upload-zone:hover {
+  border-color: var(--blue);
+  background: var(--bl);
+}
+.wr-upload-zone svg {
+  width: 22px;
+  height: 22px;
+  color: var(--blue);
+  display: block;
+  margin: 0 auto 7px;
+}
+.wr-upload-t {
+  font-size: 12px;
+  color: var(--blue);
+  font-weight: 500;
+}
+.wr-upload-s {
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 2px;
+}

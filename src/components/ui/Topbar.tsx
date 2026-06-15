@@ -103,14 +103,28 @@ const QUICK_ACTIONS: QuickAction[] = [
  * Sellportal top bar.
  * Layout (left → right):
  *   • Search (flex)
- *   • Wallet pill (icon + balance, no label)
- *   • Need Help? pill (label + help icon)
- *   • Quick Actions   — dropdown trigger
- *   • MR avatar       — initials circle
+ *   • Wallet pill    — flat card icon + balance; click opens recharge modal
+ *   • Vertical divider
+ *   • Quick Actions  — flat lightning-bolt icon + label, dropdown trigger
+ *   • Vertical divider
+ *   • Support        — flat help icon + label, links to /support
+ *   • MR avatar      — initials circle, dropdown trigger
+ *
+ * Visual recipe sourced from the 2026 redesign mock — the wallet,
+ * Quick Actions and Support controls are deliberately **flat** (no
+ * border / pill) and live alongside hairline dividers so the topbar
+ * reads as a lightweight utility strip rather than a row of
+ * competing buttons.
  */
 export const Topbar: React.FC<TopbarProps> = ({ onMobileMenuClick }) => {
   const navigate = useNavigate();
   const showToast = useReportsStore((s) => s.showToast);
+  const openWalletRecharge = useReportsStore((s) => s.openWalletRecharge);
+  const walletBalance = useReportsStore((s) => s.walletBalance);
+  const formattedBalance = `₹${new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(walletBalance)}`;
 
   const [qaOpen, setQaOpen] = useState(false);
   const qaWrapRef = useRef<HTMLDivElement>(null);
@@ -226,40 +240,30 @@ export const Topbar: React.FC<TopbarProps> = ({ onMobileMenuClick }) => {
       </div>
 
       <div className="tb-r" role="toolbar" aria-label="Top bar actions">
-        {/* Wallet — icon + amount only (no "Wallet:" label) */}
+        {/* Wallet pill — flat (no border). The whole button is now the
+            recharge trigger (opens the wallet-recharge popup); the
+            previous orange "+" button was folded into this single
+            affordance so the topbar carries one less control. */}
         <button
           type="button"
           className="tb-wallet"
-          title="Wallet balance"
-          onClick={() => showToast('Wallet: ₹1,741.32')}
+          title="Recharge wallet"
+          aria-label={`Wallet balance ${formattedBalance}. Click to recharge.`}
+          onClick={openWalletRecharge}
         >
           <span className="tb-wallet-ico" aria-hidden="true">
-            <svg viewBox="0 0 16 16" fill="none" stroke="#6B6960" strokeWidth="1.22">
-              <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" />
-              <path d="M1.5 7.5H14.5" strokeLinecap="round" />
-              <path d="M11.5 6.5H12.5" strokeLinecap="round" />
+            <svg viewBox="0 0 20 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="20" height="16">
+              <rect x="1.5" y="2.5" width="17" height="11" rx="2" />
+              <path d="M1.5 7H18.5" />
             </svg>
           </span>
-          <span className="tb-wallet-amount">₹1,741.32</span>
+          <span className="tb-wallet-amount">{formattedBalance}</span>
         </button>
 
-        {/* Need Help? — label on the left, help icon on the right */}
-        <button
-          type="button"
-          className="tb-help"
-          title="Get help"
-          onClick={() => showToast('Help & Documentation')}
-        >
-          <span className="tb-help-lbl">Need Help?</span>
-          <span className="tb-help-ico" aria-hidden="true">
-            <svg viewBox="0 0 16 16" fill="none" stroke="#6B6960" strokeWidth="1.22">
-              <path d="M6.5 1.5H3C2.17 1.5 1.5 2.17 1.5 3V13C1.5 13.83 2.17 14.5 3 14.5H13C13.83 14.5 14.5 13.83 14.5 13V9.5" strokeLinecap="round" />
-              <path d="M1.5 11.5H14.5M11.5 14.5H13.5" strokeLinecap="round" />
-            </svg>
-          </span>
-        </button>
+        {/* Hairline divider between wallet pill and Quick Actions */}
+        <span className="tb-divider" aria-hidden="true" />
 
-        {/* Quick Actions — dropdown */}
+        {/* Quick Actions — flat trigger with lightning-bolt glyph */}
         <div className="tb-qa-wrap" ref={qaWrapRef}>
           <button
             type="button"
@@ -269,10 +273,12 @@ export const Topbar: React.FC<TopbarProps> = ({ onMobileMenuClick }) => {
             aria-expanded={qaOpen}
             onClick={() => setQaOpen((p) => !p)}
           >
+            <span className="tb-qa-ico" aria-hidden="true">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                <path d="M11.5 2L4 11.25h5L8.5 18l7.5-9.25h-5L11.5 2z" />
+              </svg>
+            </span>
             <span className="tb-qa-lbl">Quick Actions</span>
-            <svg className="tb-qa-chev" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5" width="10" height="6" aria-hidden="true">
-              <path d="M1 1l4 4 4-4" strokeLinecap="round" />
-            </svg>
           </button>
 
           <div className={`tb-qa-dd ${qaOpen ? 'sh' : ''}`} role="menu" aria-label="Quick Actions">
@@ -291,6 +297,29 @@ export const Topbar: React.FC<TopbarProps> = ({ onMobileMenuClick }) => {
             ))}
           </div>
         </div>
+
+        {/* Hairline divider between Quick Actions and Support */}
+        <span className="tb-divider" aria-hidden="true" />
+
+        {/* Support — flat link button. Icon left, label right; same
+            visual recipe as the Wallet + Quick Actions controls so
+            the three utility actions read as one continuous strip. */}
+        <button
+          type="button"
+          className="tb-support"
+          aria-label="Support"
+          title="Support"
+          onClick={() => navigate('/support')}
+        >
+          <span className="tb-support-ico" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+              <circle cx="10" cy="10" r="7.25" />
+              <path d="M7.6 7.5a2.4 2.4 0 014.8 0c0 1.3-1 1.7-1.9 2.3-.45.3-.5.55-.5 1" />
+              <circle cx="10" cy="14.25" r=".5" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <span className="tb-support-lbl">Support</span>
+        </button>
 
         {/* Account avatar — dropdown trigger.
             Visual recipe is borrowed from `.tb-qa-*` so the popover

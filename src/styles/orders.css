@@ -22,7 +22,22 @@
   flex-wrap: wrap;
 }
 .ord-ph-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.ord-ph-title { font-size: 20px; font-weight: 700; letter-spacing: -.4px; color: var(--ink); flex-shrink: 0; }
+.ord-ph-title { font-size: 20px; font-weight: 700; letter-spacing: -.4px; color: var(--ink); flex-shrink: 0; display: inline-flex; align-items: center; gap: 10px; }
+
+/* "Cloned from #..." pill next to the New Forward Order title — surfaced
+   only when the page was navigated to via the Clone Order menu. */
+.ord-nf-clone-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--blue);
+  background: var(--bl);
+  border: 1px solid color-mix(in srgb, var(--blue) 30%, transparent);
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
 
 /* Inline filter chips — moved beneath the title row so the right-side
    CTAs always stay aligned with the page heading. */
@@ -214,15 +229,69 @@
    accent bar on the left, icon chip top-right, big monospaced
    number, optional sub text. Each card is a full <button> so it
    reads as actionable to screen readers and keyboard users. */
+/* Shell wrapper — owns the strip's bottom margin and positions the
+   left / right scroll arrows over the row when the kc-scroll variant
+   kicks in. The arrows live in `KpiScrollShell.tsx`. */
+.ord-kc-shell {
+  position: relative;
+  margin-bottom: 16px;
+}
+
 .ord-kc-row {
   display: grid;
   /* `auto-fit` lets the strip flex between 3-card (Ready to Ship, Ready to
-     Pickup) and 4-card (Pending, In-Transit, Delivered, RTO, All) layouts
+     Pickup) and 4-card (Pending, In-Transit, Delivered, All) layouts
      without needing a per-tab grid override. */
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-  margin-bottom: 16px;
 }
+
+/* 5+ card variant (e.g. RTO): switch to a horizontally scrollable
+   flex strip with each card pinned to 1/4 of the row width so exactly
+   four tiles stay visible at once. Native scrollbars are hidden — the
+   arrows in `KpiScrollShell` are the only affordance. */
+.ord-kc-row.kc-scroll {
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  /* Tiny right-pad so the focus ring on the trailing card never gets
+     clipped against the shell edge. */
+  padding-right: 1px;
+}
+.ord-kc-row.kc-scroll::-webkit-scrollbar { display: none; }
+.ord-kc-row.kc-scroll .ord-kc {
+  flex: 0 0 calc((100% - 36px) / 4);
+  min-width: 0;
+}
+
+/* Floating arrow buttons — only rendered by `KpiScrollShell` when
+   the row actually has scrollable content in that direction. */
+.ord-kc-arr {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+  font-family: var(--font);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: background .12s, border-color .12s, transform .12s;
+}
+.ord-kc-arr:hover  { background: var(--s2); border-color: var(--border2); }
+.ord-kc-arr:active { transform: translateY(-50%) scale(.96); }
+.ord-kc-arr.left   { left: -14px; }
+.ord-kc-arr.right  { right: -14px; }
 .ord-kc {
   position: relative;
   overflow: hidden;
@@ -235,6 +304,10 @@
   color: inherit;
   cursor: pointer;
   transition: border-color .18s, box-shadow .18s, transform .18s;
+  /* Fixed floor so cards stay the same height across every Orders tab —
+     covers the tallest variant (label + value + pill/sub) so shorter
+     variants (e.g. every RTO tile) align with the rest of the strip. */
+  min-height: 134px;
 }
 .ord-kc:hover  { border-color: var(--border2); box-shadow: var(--shadow); }
 .ord-kc:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }

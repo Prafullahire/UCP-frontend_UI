@@ -4,6 +4,7 @@ import type { KpiSpec, Severity } from '../data/dashboardData';
 interface KpiCardProps extends KpiSpec {
   /** Variant: 'detail' shows sub/CTA; 'compact' hugs content (used by NDR mini-KPIs) */
   variant?: 'detail' | 'compact';
+  onClickCTA?: () => void;
 }
 
 const SEV_LABEL: Record<Severity, string> = {
@@ -25,6 +26,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   cta,
   tip,
   variant = 'detail',
+  onClickCTA,
 }) => {
   const compact = variant === 'compact';
   return (
@@ -51,7 +53,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
             {SEV_LABEL[sev]}
           </span>
           {cta && (
-            <button type="button" className={`cta ${sev === 'high' ? 'cta-p' : 'cta-s'}`}>
+            <button type="button" className={`cta ${sev === 'high' ? 'cta-p' : 'cta-s'}`} onClick={onClickCTA}>
               {cta}
             </button>
           )}

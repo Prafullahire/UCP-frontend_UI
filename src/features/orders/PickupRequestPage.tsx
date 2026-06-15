@@ -246,12 +246,9 @@ export const PickupRequestPage: React.FC = () => {
           <button
             type="button"
             className="ord-cta ord-cta-s"
-            onClick={() => {
-              window.location.reload();
-            }}
+            onClick={() => navigate('/orders')}
           >
-            {RefreshIcon}
-            Refresh
+            ← Back to Orders
           </button>
         </div>
       </div>

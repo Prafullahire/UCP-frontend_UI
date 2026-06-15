@@ -1,4 +1,5 @@
 import React from 'react';
+import KpiScrollShell from './KpiScrollShell';
 
 /**
  * Generic, tab-agnostic version of `PendingKpiStrip`. Renders 3–5 KPI tiles
@@ -137,7 +138,7 @@ export const ShipmentKpiStrip: React.FC<ShipmentKpiStripProps> = ({
   ariaLabel,
 }) => {
   return (
-    <div className="ord-kc-row" role="group" aria-label={ariaLabel ?? 'Summary'}>
+    <KpiScrollShell cardCount={cards.length} ariaLabel={ariaLabel ?? 'Summary'}>
       {cards.map((c) => {
         const tokens = ACCENT[c.accent];
         const isOn = !!active && !c.staticTile && active === c.id;
@@ -172,7 +173,7 @@ export const ShipmentKpiStrip: React.FC<ShipmentKpiStripProps> = ({
           </button>
         );
       })}
-    </div>
+    </KpiScrollShell>
   );
 };
 

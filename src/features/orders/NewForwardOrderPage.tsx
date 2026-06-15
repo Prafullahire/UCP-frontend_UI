@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate,useLocation} from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
 import { ordersApi } from '../../services/ordersApi';
@@ -8,6 +8,9 @@ import PackageDrawer from './components/PackageDrawer';
 import CustomerDrawer from './components/CustomerDrawer';
 import SavedAddressSelect, { type SavedAddressOption } from './components/SavedAddressSelect';
 import ProductSearchSelect from './components/ProductSearchSelect';
+import SelectShipmentModeView from './components/SelectShipmentModeView';
+import AwbAssignedView from './components/AwbAssignedView';
+import { SHIPMENT_MODES, genAwbNumber } from './data/shipmentModes';
 import {
   CATALOG_PRODUCTS,
   PRIMARY_PICKUP,
@@ -21,6 +24,7 @@ import {
   type SavedPackage,
   type SavedPickup,
 } from './data/forwardOrderData';
+import type { Order, Shipment } from './types';
 
 /* ─── Tabs (Single Order is default per the brief) ─────────── */
 type TabId = 'single' | 'bulk';
@@ -47,53 +51,79 @@ interface LineItem {
 */
 type OrderStep = 'compose' | 'pending-manifest' | 'select-mode' | 'awb-assigned';
 
-/* Shipment mode catalogue used by the Select Shipment Mode screen.
-   Mirrors the courier-comparison rows shown in the reference design —
-   each row carries the partner, the optional mode tag (Surface / Air),
-   the weight slab the row is priced for, and the charge in rupees.
-   `mode` is intentionally optional: untagged Xpressbees rows in the
-   reference are weight-tier variants that don't fit either filter
-   tab. */
-interface ShipmentMode {
-  id: string;
-  courier: string;
-  mode?: 'Surface' | 'Air';
-  /** Weight slab in kilograms (e.g. 0.5, 1, 2, 5, 10) */
-  weight: number;
-  /** All-in charge for this slab in rupees */
-  rate: number;
+/**
+ * Pre-fill payload pushed via `location.state` when the user picks
+ * "Clone Order" from a row menu. Carries the original Order / Shipment
+ * so the composer can hydrate every form field that maps cleanly.
+ */
+interface CloneNavState {
+  clonedFrom?: Order | Shipment;
 }
 
-const SHIPMENT_MODES: ShipmentMode[] = [
-  { id: 'air-xb-05',  courier: 'Air Xpressbees',     mode: 'Air',     weight: 0.5, rate: 68  },
-  { id: 'sur-xb-05',  courier: 'Xpressbees Surface', mode: 'Surface', weight: 0.5, rate: 70  },
-  { id: 'xb-1',       courier: 'Xpressbees',                          weight: 1,   rate: 99  },
-  { id: 'xb-2',       courier: 'Xpressbees',                          weight: 2,   rate: 152 },
-  { id: 'xb-5',       courier: 'Xpressbees',                          weight: 5,   rate: 214 },
-  { id: 'xb-10',      courier: 'Xpressbees',                          weight: 10,  rate: 314 },
-];
+/**
+ * Field-by-field initial-state derivation for a cloned source. Each
+ * lookup falls back gracefully when the source's value can't be matched
+ * against the saved-pickups / saved-customers / catalog datasets — the
+ * user is still free to re-select. Tucked at module scope so the
+ * component body stays readable.
+ */
+function deriveCloneSeed(source: Order | Shipment | undefined) {
+  if (!source) return null;
 
-/* Compact 2-letter postal codes for the Indian states our mock data
-   uses. Mirrors the "{pincode}, {state-code}" format shown in the
-   reference design's order-summary sidebar (e.g. "560002, KA"). */
-const STATE_CODES: Record<string, string> = {
-  'Karnataka':      'KA',
-  'Maharashtra':    'MH',
-  'Delhi':          'DL',
-  'Tamil Nadu':     'TN',
-  'Uttar Pradesh':  'UP',
-  'West Bengal':    'WB',
-  'Gujarat':        'GJ',
-  'Rajasthan':      'RJ',
-  'Telangana':      'TS',
-  'Andhra Pradesh': 'AP',
-  'Kerala':         'KL',
-  'Punjab':         'PB',
-  'Haryana':        'HR',
-  'Madhya Pradesh': 'MP',
-};
-const toStateCode = (state: string): string =>
-  STATE_CODES[state] ?? state.slice(0, 2).toUpperCase();
+  /* Customer match — by name first, then phone, then city + pincode. */
+  const cust = SAVED_CUSTOMERS.find((c) => c.name === source.customer.name)
+    ?? SAVED_CUSTOMERS.find((c) => c.phone === source.customer.phone)
+    ?? SAVED_CUSTOMERS.find(
+      (c) => c.city === source.customer.city && c.pincode === source.customer.pin,
+    )
+    ?? null;
+
+  /* Pickup match — try the source's `pickupLocation` id directly, then
+     fall back to a same-city saved pickup, then the Primary. */
+  const pickup = SAVED_PICKUPS.find((p) => p.id === source.pickupLocation)
+    ?? SAVED_PICKUPS.find((p) => p.city === source.pickup.city)
+    ?? PRIMARY_PICKUP;
+
+  /* Product match — only Order + new RTO Shipments carry a product. */
+  const product = 'product' in source && source.product
+    ? CATALOG_PRODUCTS.find((p) => p.sku === source.product!.sku)
+      ?? CATALOG_PRODUCTS.find((p) => p.name === source.product!.name)
+      ?? null
+    : null;
+
+  /* Package fields — only Pending orders carry a parsed package block;
+     shipments fall back to defaults. */
+  const pkg = 'package' in source && source.package ? source.package : null;
+  const parseWeight = (s: string) => {
+    const n = Number(s.replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) && n > 0 ? String(n) : '';
+  };
+  const parseDims = (s: string): { l: string; b: string; h: string } => {
+    const m = s.match(/(\d+)[^\d]+(\d+)[^\d]+(\d+)/);
+    return m ? { l: m[1], b: m[2], h: m[3] } : { l: '', b: '', h: '' };
+  };
+  const dims = pkg ? parseDims(pkg.dims) : { l: '', b: '', h: '' };
+  const physical = pkg ? parseWeight(pkg.deadWt) : '';
+
+  /* Payment — Order/Shipment.payment.mode is 'COD' | 'Prepaid' | 'Pickup'.
+     The composer's `paymentMode` state only models COD vs PREPAID; treat
+     Pickup as COD-equivalent for collection purposes. */
+  const paymentMode: 'COD' | 'PREPAID' = source.payment.mode === 'Prepaid' ? 'PREPAID' : 'COD';
+
+  return {
+    sourceId: source.id,
+    customerId: cust?.id ?? null,
+    pickupId:   pickup.id,
+    productId:  product?.id ?? null,
+    productQty: 'product' in source && source.product ? Math.max(1, source.product.qty) : 1,
+    physicalWt: physical,
+    length:  dims.l,
+    breadth: dims.b,
+    height:  dims.h,
+    paymentMode,
+    collectable: source.payment.mode === 'COD' ? String(source.payment.amount) : '',
+  };
+}
 
 /**
  * New Forward Order screen.
@@ -113,15 +143,28 @@ const toStateCode = (state: string): string =>
  */
 export const NewForwardOrderPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const showToast = useReportsStore((s) => s.showToast);
   const toast     = useReportsStore((s) => s.toast);
+
+  /* ─── Clone Order pre-fill ──────────────────────────────────
+     `location.state.clonedFrom` is populated by the Clone Order menu
+     item on the Pending grid + every Shipment grid. We hydrate the
+     composer in a single pass via `deriveCloneSeed` so every useState
+     below can use a lazy initializer — no useEffect race needed. */
+  const cloneSeed = useMemo(() => {
+    const navState = location.state as CloneNavState | null;
+    return deriveCloneSeed(navState?.clonedFrom);
+  }, [location.state]);
 
   /* ─── Tabs ───────────────────────────────────────────────── */
   const [tab, setTab] = useState<TabId>('single');
 
   /* ─── Pickup ─────────────────────────────────────────────── */
   const [pickups, setPickups] = useState<SavedPickup[]>(SAVED_PICKUPS);
-  const [pickupId, setPickupId] = useState<string | null>(PRIMARY_PICKUP.id);
+  const [pickupId, setPickupId] = useState<string | null>(
+    () => cloneSeed?.pickupId ?? PRIMARY_PICKUP.id,
+  );
   const selectedPickup = pickups.find((p) => p.id === pickupId) ?? null;
   /* Drawer state — { mode, id? } open when not null. */
   const [pickupDrawer, setPickupDrawer] = useState<{ mode: 'create' | 'edit'; id?: string } | null>(null);
@@ -166,7 +209,11 @@ export const NewForwardOrderPage: React.FC = () => {
 
   /* ─── Products ───────────────────────────────────────────── */
   const [products] = useState<CatalogProduct[]>(CATALOG_PRODUCTS);
-  const [lines, setLines] = useState<LineItem[]>([]);
+  const [lines, setLines] = useState<LineItem[]>(
+    () => (cloneSeed?.productId
+      ? [{ productId: cloneSeed.productId, qty: cloneSeed.productQty }]
+      : []),
+  );
   const [chargesOpen, setChargesOpen] = useState(false);
 
   /* ─── Other charges & discount (all optional, numeric) ───────
@@ -202,10 +249,10 @@ export const NewForwardOrderPage: React.FC = () => {
 
   /* Per the brief: Physical Weight is ALWAYS user-editable, even after
      selecting a saved package. So we keep it as its own state. */
-  const [physicalWt, setPhysicalWt] = useState<string>('');
-  const [length,  setLength]  = useState<string>('');
-  const [breadth, setBreadth] = useState<string>('');
-  const [height,  setHeight]  = useState<string>('');
+  const [physicalWt, setPhysicalWt] = useState<string>(() => cloneSeed?.physicalWt ?? '');
+  const [length,  setLength]  = useState<string>(() => cloneSeed?.length  ?? '');
+  const [breadth, setBreadth] = useState<string>(() => cloneSeed?.breadth ?? '');
+  const [height,  setHeight]  = useState<string>(() => cloneSeed?.height  ?? '');
   const [savePackageDetail, setSavePackageDetail] = useState(false);
 
   /* Drawer state for the Package drawer */
@@ -611,7 +658,14 @@ export const NewForwardOrderPage: React.FC = () => {
               >
                 ‹
               </button>
-              <div className="ord-ph-title">New Forward Order</div>
+              <div className="ord-ph-title">
+                New Forward Order
+                {cloneSeed && (
+                  <span className="ord-nf-clone-badge" title={`Cloned from ${cloneSeed.sourceId}`}>
+                    Cloned from #{cloneSeed.sourceId}
+                  </span>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -1176,11 +1230,6 @@ function genOrderId(): string {
   return Math.floor(Date.now() / 1000).toString();
 }
 
-/* AWB pattern mimics the XB Sellportal format: "1XB" prefix + 11 digits. */
-function genAwbNumber(): string {
-  const tail = Math.floor(10_000_000_000 + Math.random() * 89_999_999_999);
-  return `1XB${tail}`;
-}
 
 interface AddressCardProps {
   name: string;
@@ -1195,7 +1244,7 @@ const AddressCard: React.FC<AddressCardProps> = ({ name, address, phone, email, 
   <div className="ord-nf-addrcard">
     <div className="ord-nf-addrcard-top">
       <div className="ord-nf-addrcard-name">{name}</div>
-      {verified && <span className="ord-nf-verified">✓ Verified</span>}
+      {verified && <span className="ord-nf-verified">✓ Verified</span>}  
     </div>
     <div className="ord-nf-addrcard-body">{address}</div>
     <div className="ord-nf-addrcard-meta">
@@ -1325,286 +1374,6 @@ const PendingManifestView: React.FC<PendingManifestViewProps> = ({
   </div>
 );
 
-interface SelectShipmentModeViewProps {
-  orderId: string;
-  pickupCity: string;
-  pickupPincode: string;
-  pickupState: string;
-  deliveryCity: string;
-  deliveryPincode: string;
-  deliveryState: string;
-  orderValue: number;
-  paymentMode: 'PREPAID' | 'COD';
-  chargeableWeight: number;
-  modes: ShipmentMode[];
-  selectedModeId: string | null;
-  onSelectMode: (id: string) => void;
-}
 
-type ShipmentModeTab  = 'all' | 'surface' | 'air';
-type ShipmentSortDir  = 'asc' | 'desc';
-
-const SelectShipmentModeView: React.FC<SelectShipmentModeViewProps> = ({
-  orderId, pickupCity, pickupPincode, pickupState,
-  deliveryCity, deliveryPincode, deliveryState,
-  orderValue, paymentMode, chargeableWeight,
-  modes, selectedModeId, onSelectMode,
-}) => {
-  
-  const [tab,     setTab]     = useState<ShipmentModeTab>('all');
-  const [sortDir, setSortDir] = useState<ShipmentSortDir>('asc');
-
-  const counts = useMemo(() => ({
-    all:     modes.length,
-    surface: modes.filter((m) => m.mode === 'Surface').length,
-    air:     modes.filter((m) => m.mode === 'Air').length,
-  }), [modes]);
-
-  const visibleModes = useMemo(() => {
-    const filtered =
-      tab === 'surface' ? modes.filter((m) => m.mode === 'Surface') :
-      tab === 'air'     ? modes.filter((m) => m.mode === 'Air')     :
-      modes;
-    return filtered.slice().sort((a, b) =>
-      sortDir === 'asc' ? a.rate - b.rate : b.rate - a.rate,
-    );
-  }, [modes, tab, sortDir]);
-
-  const TABS: Array<{ id: ShipmentModeTab; label: string; count: number }> = [
-    { id: 'all',     label: 'All',     count: counts.all     },
-    { id: 'surface', label: 'Surface', count: counts.surface },
-    { id: 'air',     label: 'Air',     count: counts.air     },
-  ];
-
-  return (
-    <div className="ord-nf-mode-grid">
-      {/* ── Order summary sidebar (matches the reference layout) ── */}
-      <aside className="ord-nf-mode-side">
-        <div className="ord-nf-mode-side-sec">
-          <div className="ord-nf-mode-side-k">ORDER</div>
-          <div className="ord-nf-mode-side-v">{orderId}</div>
-          <div className="ord-nf-mode-side-sub">Forward · Single</div>
-        </div>
-
-        <div className="ord-nf-mode-side-sec">
-          <div className="ord-nf-mode-side-k">ROUTE</div>
-          <div className="ord-nf-mode-side-route">
-            <div className="ord-nf-mode-side-loc">
-              <b>{pickupCity}</b>
-              <span>{pickupPincode}{pickupState && `, ${toStateCode(pickupState)}`}</span>
-            </div>
-            <span className="ord-nf-mode-side-line" aria-hidden="true" />
-            <div className="ord-nf-mode-side-loc to">
-              <b>{deliveryCity}</b>
-              <span>{deliveryPincode}{deliveryState && `, ${toStateCode(deliveryState)}`}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="ord-nf-mode-side-sec">
-          <div className="ord-nf-mode-side-k">ORDER VALUE</div>
-          <div className="ord-nf-mode-side-v">₹{orderValue.toLocaleString('en-IN')}</div>
-        </div>
-
-        <div className="ord-nf-mode-side-sec">
-          <div className="ord-nf-mode-side-k">PAYMENT</div>
-          <span className={`ord-pay-mode ${paymentMode === 'COD' ? 'cod' : 'prepaid'}`}>
-            {paymentMode}
-          </span>
-        </div>
-
-        <div className="ord-nf-mode-side-sec">
-          <div className="ord-nf-mode-side-k">APPLICABLE WEIGHT (IN KG)</div>
-          <div className="ord-nf-mode-side-v">{chargeableWeight} kg</div>
-        </div>
-      </aside>
-
-      {/* ── Right panel: tabs + sort toolbar + courier table ── */}
-      <main className="ord-nf-mode-main">
-        <div className="ord-nf-mode-toolbar">
-          <div className="ord-nf-mode-tabs" role="tablist" aria-label="Shipment mode filter">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={tab === t.id}
-                className={`ord-nf-mode-tab ${tab === t.id ? 'on' : ''}`}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
-                <span className="ord-nf-mode-tab-count">{t.count}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="ord-nf-mode-toolbar-r">
-            <span className="ord-nf-mode-count-lbl">
-              <b>{visibleModes.length}</b> services found
-            </span>
-            <label className="ord-nf-mode-sort">
-              <select
-                value={sortDir}
-                onChange={(e) => setSortDir(e.target.value as ShipmentSortDir)}
-                aria-label="Sort by price"
-              >
-                <option value="asc">Price: Low - High</option>
-                <option value="desc">Price: High - Low</option>
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <div className="ord-nf-mode-tbl" role="table">
-          <div className="ord-nf-mode-tbl-hdr" role="row">
-            <span />
-            <span role="columnheader">COURIER SERVICE</span>
-            <span role="columnheader" className="num">WEIGHT</span>
-            <span role="columnheader" className="num">CHARGES</span>
-          </div>
-
-          {visibleModes.length === 0 ? (
-            <div className="ord-nf-mode-tbl-empty">
-              No {tab === 'all' ? '' : tab} services available for this route.
-            </div>
-          ) : (
-            visibleModes.map((m) => {
-              const isOn = m.id === selectedModeId;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  role="row"
-                  aria-pressed={isOn}
-                  className={`ord-nf-mode-tbl-row ${isOn ? 'on' : ''}`}
-                  onClick={() => onSelectMode(m.id)}
-                >
-                  <span
-                    className={`ord-cb ${isOn ? 'on' : ''}`}
-                    aria-hidden="true"
-                  />
-                  <div className="ord-nf-mode-tbl-courier">
-                    <div className="ord-nf-mode-tbl-name">{m.courier}</div>
-                    {m.mode && (
-                      <span className={`ord-nf-mode-tag ${m.mode.toLowerCase()}`}>
-                        {m.mode.toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="ord-nf-mode-tbl-wt">
-                    <span className="ord-nf-mode-wt-pill">
-                      {m.weight} K.G
-                    </span>
-                  </div>
-                  <div className="ord-nf-mode-tbl-rate">
-                    ₹{m.rate.toLocaleString('en-IN')}
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </main>
-    </div>
-  );
-};
-
-interface AwbAssignedViewProps {
-  orderId: string;
-  awbNumber: string;
-  shipmentMode: ShipmentMode | null;
-  customerName: string;
-  deliveryCity: string;
-  pickupName: string;
-  pickupCity: string;
-  chargeableWeight: number;
-  amount: number;
-  paymentMode: 'PREPAID' | 'COD';
-  onViewOrders: () => void;
-  onCreateAnother: () => void;
-  onPrintLabel: () => void;
-}
-const AwbAssignedView: React.FC<AwbAssignedViewProps> = ({
-  orderId, awbNumber, shipmentMode, customerName, deliveryCity, pickupName, pickupCity,
-  chargeableWeight, amount, paymentMode, onViewOrders, onCreateAnother, onPrintLabel,
-}) => (
-  <div className="ord-nf-state">
-    <div className="ord-nf-state-card">
-      <div className="ord-nf-state-ico ok" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 6 9 17l-5-5" />
-        </svg>
-      </div>
-      <div className="ord-nf-state-title">AWB Assigned</div>
-      <div className="ord-nf-state-sub">
-        Order <b>{orderId}</b> is ready to ship.{' '}
-        {shipmentMode ? (
-          <>{shipmentMode.courier}{shipmentMode.mode ? ` (${shipmentMode.mode})` : ''} will pick it up next.</>
-        ) : null}
-      </div>
-
-      <div className="ord-nf-awb">
-        <div className="ord-nf-awb-l">
-          <div className="ord-nf-state-k">AWB Number</div>
-          <div className="ord-nf-awb-num">{awbNumber}</div>
-          {shipmentMode && (
-            <div className="ord-nf-awb-courier">
-              {shipmentMode.courier}
-              {shipmentMode.mode && ` · ${shipmentMode.mode}`}
-              {' · '}{shipmentMode.weight} kg slab
-            </div>
-          )}
-        </div>
-        <span className="ord-status new ord-nf-awb-pill">Ready to Ship</span>
-      </div>
-
-      <div className="ord-nf-state-grid">
-        <div>
-          <div className="ord-nf-state-k">Order ID</div>
-          <div className="ord-nf-state-v mono">{orderId}</div>
-        </div>
-        <div>
-          <div className="ord-nf-state-k">Customer</div>
-          <div className="ord-nf-state-v">{customerName} · {deliveryCity}</div>
-        </div>
-        <div>
-          <div className="ord-nf-state-k">Pickup From</div>
-          <div className="ord-nf-state-v">{pickupName} · {pickupCity}</div>
-        </div>
-        <div>
-          <div className="ord-nf-state-k">Chargeable Weight</div>
-          <div className="ord-nf-state-v mono">{chargeableWeight.toFixed(2)} kg</div>
-        </div>
-        <div>
-          <div className="ord-nf-state-k">Order Value</div>
-          <div className="ord-nf-state-v mono">
-            ₹{amount.toLocaleString('en-IN')}{' '}
-            <span className={`ord-pay-mode ${paymentMode === 'COD' ? 'cod' : 'prepaid'}`} style={{ marginLeft: 6 }}>
-              {paymentMode}
-            </span>
-          </div>
-        </div>
-        {shipmentMode && (
-          <div>
-            <div className="ord-nf-state-k">Shipping Rate</div>
-            <div className="ord-nf-state-v mono">₹{shipmentMode.rate.toLocaleString('en-IN')}</div>
-          </div>
-        )}
-      </div>
-
-      <div className="ord-nf-state-ft">
-        <button type="button" className="ord-cta ord-cta-s" onClick={onCreateAnother}>
-          + Create Another Order
-        </button>
-        <button type="button" className="ord-cta ord-cta-s" onClick={onPrintLabel}>
-          🖨 Print Label
-        </button>
-        <button type="button" className="ord-cta ord-cta-p" onClick={onViewOrders}>
-          View All Orders
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 export default NewForwardOrderPage;

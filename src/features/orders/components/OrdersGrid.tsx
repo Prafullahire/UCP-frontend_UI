@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import RowActionsMenu from './RowActionsMenu';
+import RowActionsMenu, {
+  CancelIcon,
+  CloneIcon,
+  EditIcon,
+  PrintIcon,
+  TagIcon,
+} from './RowActionsMenu';
 import type { Order } from '../types';
 
 /**
@@ -316,30 +322,22 @@ export const OrdersGrid: React.FC<OrdersGridProps> = ({
       {menuFor && (() => {
         const order = orders.find((o) => o.id === menuFor.orderId);
         if (!order) return null;
+        const fire = (fn: (o: Order) => void) => () => {
+          closeMenu();
+          fn(order);
+        };
         return (
           <RowActionsMenu
             anchor={menuFor.anchor}
             onClose={closeMenu}
-            onPrintInvoice={() => {
-              closeMenu();
-              onPrintInvoice(order);
-            }}
-            onEditOrder={() => {
-              closeMenu();
-              onEditOrder(order);
-            }}
-            onAddTag={() => {
-              closeMenu();
-              onAddTag(order);
-            }}
-            onCloneOrder={() => {
-              closeMenu();
-              onCloneOrder(order);
-            }}
-            onCancelOrder={() => {
-              closeMenu();
-              onCancelOrder(order);
-            }}
+            items={[
+              { key: 'print-invoice', icon: PrintIcon, label: 'Print Invoice', onClick: fire(onPrintInvoice) },
+              { key: 'edit-order',    icon: EditIcon,  label: 'Edit Order',    onClick: fire(onEditOrder) },
+              { key: 'add-tag',       icon: TagIcon,   label: 'Add Order Tag', onClick: fire(onAddTag) },
+              { key: 'clone-order',   icon: CloneIcon, label: 'Clone Order',   onClick: fire(onCloneOrder) },
+              { key: 'cancel-order',  icon: CancelIcon, label: 'Cancel Order', onClick: fire(onCancelOrder),
+                variant: 'danger', separatorAbove: true },
+            ]}
           />
         );
       })()}

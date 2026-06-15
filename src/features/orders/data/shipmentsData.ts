@@ -93,6 +93,8 @@ export const RTO_STATUSES: FilterOption[] = optsFor([
   'rto-in-transit',
   'rto-delivered',
   'rto-completed',
+  'lost',
+  'damage',
 ]);
 
 /** Superset used by the All Shipments tab (covers every lifecycle stage). */
@@ -332,14 +334,32 @@ export const DELIVERED_SHIPMENTS: Shipment[] = [
   },
 ];
 
-/* ──────────────────────────── RTO ──────────────────────────── */
+/* ──────────────────────────── RTO ────────────────────────────
+ *
+ * Each row carries the new Product + Shipping Details columns so the
+ * RTO grid can mirror the Pending-tab column recipe. Statuses are
+ * spread across the new KPI buckets (In Transit / Delivered / Lost /
+ * Damaged) so every card has at least one row to filter to.
+ */
+
+const rtoProducts = [
+  { name: 'Wireless Earbuds Pro',     sku: 'EAR-WL-PRO-01', hsn: '85183000', qty: 1 },
+  { name: 'Cotton Crew Neck T-Shirt', sku: 'APP-CT-CRW-M',  hsn: '61091000', qty: 2 },
+  { name: 'Stainless Steel Bottle',   sku: 'BTL-SS-750',    hsn: '73239390', qty: 1 },
+  { name: 'Yoga Mat — 6mm',           sku: 'YOG-MAT-6MM',   hsn: '40169990', qty: 1 },
+  { name: 'Bluetooth Speaker Mini',   sku: 'SPK-BT-MINI',   hsn: '85182200', qty: 1 },
+  { name: 'Leather Card Wallet',      sku: 'WAL-LTH-BR',    hsn: '42023100', qty: 1 },
+  { name: 'Ceramic Mug Set of 2',     sku: 'MUG-CR-SET2',   hsn: '69120010', qty: 1 },
+];
 
 export const RTO_SHIPMENTS: Shipment[] = [
   {
     id: '2234567890', awb: '2234567890', date: '08 Apr 2026', time: '11:00 AM',
     channel: 'Shopify', pickupLocation: 'bangalore-wh-d',
     customer: baseCustomer, ...baseAddress, payment: basePayment,
+    product: rtoProducts[0],
     status: 'rto-initiated', transportMode: 'air',
+    shippingCourier: 'Air Xpressbees', shippingWeight: '0.5kg', shippingZone: 'Zone B - Metro',
     manifestedDate: '07 Apr 2026', manifestedTime: '09:30 AM',
     rtoInitiatedDate: '08 Apr 2026', rtoReason: 'Customer Refused',
     tags: [],
@@ -348,7 +368,9 @@ export const RTO_SHIPMENTS: Shipment[] = [
     id: '2234567891', awb: '2234567891', date: '06 Apr 2026', time: '10:00 AM',
     channel: 'Shopify', pickupLocation: 'mumbai-wh-a',
     customer: baseCustomer, ...baseAddress, payment: basePayment,
+    product: rtoProducts[1],
     status: 'rto-in-transit', transportMode: 'surface',
+    shippingCourier: 'Surface Delhivery', shippingWeight: '0.8kg', shippingZone: 'Zone C - National',
     manifestedDate: '05 Apr 2026', manifestedTime: '11:00 AM',
     rtoInitiatedDate: '06 Apr 2026', rtoReason: 'Address Not Found',
     tags: [],
@@ -357,7 +379,9 @@ export const RTO_SHIPMENTS: Shipment[] = [
     id: '2234567892', awb: '2234567892', date: '04 Apr 2026', time: '09:00 AM',
     channel: 'WooCommerce', pickupLocation: 'pune-wh-b',
     customer: baseCustomer, ...baseAddress, payment: basePayment,
+    product: rtoProducts[2],
     status: 'rto-in-transit', transportMode: 'air',
+    shippingCourier: 'Air Bluedart', shippingWeight: '1.2kg', shippingZone: 'Zone B - Metro',
     manifestedDate: '03 Apr 2026', manifestedTime: '14:00 PM',
     rtoInitiatedDate: '04 Apr 2026', rtoReason: 'Recipient Unavailable',
     tags: [],
@@ -366,7 +390,9 @@ export const RTO_SHIPMENTS: Shipment[] = [
     id: '2234567893', awb: '2234567893', date: '02 Apr 2026', time: '08:00 AM',
     channel: 'Shopify', pickupLocation: 'delhi-wh-c',
     customer: baseCustomer, ...baseAddress, payment: basePayment,
+    product: rtoProducts[3],
     status: 'rto-delivered', transportMode: 'surface',
+    shippingCourier: 'Surface Xpressbees', shippingWeight: '2.1kg', shippingZone: 'Zone B - Metro',
     manifestedDate: '01 Apr 2026', manifestedTime: '15:00 PM',
     rtoInitiatedDate: '02 Apr 2026', rtoReason: 'Customer Refused',
     tags: [],
@@ -375,9 +401,33 @@ export const RTO_SHIPMENTS: Shipment[] = [
     id: '2234567894', awb: '2234567894', date: '01 Apr 2026', time: '12:00 PM',
     channel: 'Shopify', pickupLocation: 'hyderabad-wh-e',
     customer: baseCustomer, ...baseAddress, payment: basePayment,
+    product: rtoProducts[4],
     status: 'rto-completed', transportMode: 'air',
+    shippingCourier: 'Air Xpressbees', shippingWeight: '0.4kg', shippingZone: 'Zone D - Special',
     manifestedDate: '31 Mar 2026', manifestedTime: '09:00 AM',
     rtoInitiatedDate: '01 Apr 2026', rtoReason: 'Damaged In Transit',
+    tags: [],
+  },
+  {
+    id: '2234567895', awb: '2234567895', date: '30 Mar 2026', time: '02:15 PM',
+    channel: 'Amazon', pickupLocation: 'bangalore-wh-d',
+    customer: baseCustomer, ...baseAddress, payment: basePayment,
+    product: rtoProducts[5],
+    status: 'lost', transportMode: 'surface',
+    shippingCourier: 'Surface Delhivery', shippingWeight: '0.3kg', shippingZone: 'Zone C - National',
+    manifestedDate: '29 Mar 2026', manifestedTime: '10:30 AM',
+    rtoInitiatedDate: '30 Mar 2026', rtoReason: 'Shipment Lost in Transit',
+    tags: [],
+  },
+  {
+    id: '2234567896', awb: '2234567896', date: '28 Mar 2026', time: '04:45 PM',
+    channel: 'Shopify', pickupLocation: 'pune-wh-b',
+    customer: baseCustomer, ...baseAddress, payment: basePayment,
+    product: rtoProducts[6],
+    status: 'damage', transportMode: 'air',
+    shippingCourier: 'Air Bluedart', shippingWeight: '1.5kg', shippingZone: 'Zone B - Metro',
+    manifestedDate: '27 Mar 2026', manifestedTime: '11:15 AM',
+    rtoInitiatedDate: '28 Mar 2026', rtoReason: 'Package Damaged on Return',
     tags: [],
   },
 ];
@@ -455,6 +505,18 @@ export function computeDeliveredKpis(rows: Shipment[]) {
   };
 }
 
+/**
+ * KPI buckets for the RTO tab:
+ *
+ *   • total      — every row in the dataset
+ *   • inTransit  — rto-initiated + rto-in-transit (RTO still moving)
+ *   • delivered  — rto-delivered + rto-completed  (return journey done)
+ *   • lost       — courier reported the parcel lost during return
+ *   • damaged    — parcel arrived back damaged
+ *
+ * Small paddings keep the demo numbers visually balanced — matches the
+ * pattern used by every other `computeXxxKpis` helper in this file.
+ */
 export function computeRtoKpis(rows: Shipment[]) {
   return {
     rtoInTransit:  rows.filter((r) => r.status === 'rto-in-transit').length,

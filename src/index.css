@@ -8,4 +8,8 @@
 @import "./styles/ndr.css";
 @import "./styles/profile.css";
 @import "./styles/info-center.css";
+@import "./styles/wallet.css";
+@import "./styles/wallet-recharge.css";
+@import "./styles/remittance.css";
+@import "./styles/weight-reconciliation.css";
 

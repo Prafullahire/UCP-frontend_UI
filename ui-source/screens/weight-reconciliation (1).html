@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1440"/>
+<title>Weight Reconciliation · XpressBees Seller Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F4F3EF;--surface:#FFF;--s2:#F8F7F3;--s3:#EEECEA;
+  --border:#E2E0D8;--border2:#C5C3BB;
+  --ink:#1A190F;--ink2:#5C5B52;--ink3:#9B998F;
+  --orange:#E8520A;--ol:#FEF0E8;--om:#F5C09A;
+  --red:#C52E18;--rl:#FDECEA;--rm:#F2A39A;
+  --green:#1A6B3A;--gl:#E7F5ED;--gm:#8DD4A9;
+  --amber:#9E5A00;--al:#FFF5E5;--am:#F5C878;
+  --blue:#1246A0;--bl:#EAF0FD;--bm:#8EAFF0;
+  --gray:#6B6A62;--gray-l:#EEECE9;--gray-m:#C3C1B8;
+}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;overflow:hidden}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.blink{animation:pulse 2s ease-in-out infinite}
+@keyframes modalPop{from{transform:scale(.96) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+
+/* ── LAYOUT ── */
+.shell{display:flex;height:100vh}
+
+/* SIDEBAR */
+.sb{width:54px;background:#0F0E09;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:14px 0 18px;gap:4px}
+.sb-logo{width:34px;height:34px;background:var(--orange);border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.sb-logo svg{width:18px;height:18px;fill:#fff}
+.sb-i{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#46443C;transition:all .15s}
+.sb-i:hover{background:#1C1B14;color:#8A8878}
+.sb-i.on{background:var(--orange);color:#fff}
+.sb-i svg{width:16px;height:16px}
+.sb-sep{width:26px;height:1px;background:#222118;margin:5px 0}
+.sb-f{flex:1}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+
+/* TOPBAR */
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);padding:0 22px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:200}
+.tb-srch{flex:1;max-width:440px;display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;height:34px;padding:0 12px;transition:border-color .15s,box-shadow .15s}
+.tb-srch:focus-within{border-color:var(--orange);box-shadow:0 0 0 3px var(--ol)}
+.tb-srch svg{width:13px;height:13px;color:var(--ink3);flex-shrink:0}
+.tb-srch input{border:none;background:transparent;outline:none;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--ink);width:100%}
+.tb-srch input::placeholder{color:var(--ink3)}
+.tb-sep{width:1px;height:20px;background:var(--border)}
+.tb-r{display:flex;align-items:center;gap:8px;margin-left:auto}
+.tbtn{display:inline-flex;align-items:center;gap:5px;padding:0 13px;height:32px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--ink2);font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.tbtn:hover{border-color:var(--border2)}
+.tbtn svg{width:12px;height:12px}
+.tbtn-p{background:var(--orange);color:#fff;border-color:var(--orange)}
+.tbtn-p:hover{opacity:.88}
+.av{width:30px;height:30px;border-radius:50%;background:var(--ol);border:1.5px solid var(--om);font-size:11px;font-weight:700;color:var(--orange);display:flex;align-items:center;justify-content:center}
+
+/* PAGE */
+.page{flex:1;overflow-y:auto;padding:22px 24px 60px}
+.page::-webkit-scrollbar{width:5px}
+.page::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* PAGE HEADER */
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.ph-left{display:flex;align-items:center;gap:10px}
+.ph-icon{width:34px;height:34px;border-radius:9px;background:var(--ol);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ph-icon svg{width:17px;height:17px;color:var(--orange)}
+.ph-title{font-size:20px;font-weight:700;letter-spacing:-.4px}
+.ph-right{display:flex;align-items:center;gap:8px}
+
+/* TABS */
+.tabs-row{display:flex;align-items:center;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.tab{padding:10px 20px;font-size:13px;font-weight:500;color:var(--ink3);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap;user-select:none;display:flex;align-items:center;gap:7px}
+.tab:hover{color:var(--ink2)}
+.tab.on{color:var(--ink);font-weight:700;border-bottom-color:var(--orange)}
+.tab-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:17px;padding:0 5px;border-radius:9px;font-size:10px;font-weight:700}
+.tab.on .tab-cnt{background:var(--ol);color:var(--orange)}
+.tab:not(.on) .tab-cnt{background:var(--s3);color:var(--ink3)}
+
+/* KPI SUMMARY STRIP */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.kpi-card{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;transition:all .18s}
+.kpi-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.kpi-card.on{border-color:transparent}
+.kpi-bar{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:12px 0 0 12px}
+.kpi-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:7px}
+.kpi-n{font-size:28px;font-weight:700;letter-spacing:-.6px;line-height:1}
+.kpi-sub{font-size:11px;color:var(--ink3);margin-top:5px}
+.kpi-tag{display:inline-flex;align-items:center;gap:4px;margin-top:9px;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700}
+.kpi-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+
+/* TABLE */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.tbl-toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap}
+.tbl-count{font-size:12px;color:var(--ink2)}.tbl-count b{color:var(--ink);font-weight:600}
+.tbl-actions{display:flex;gap:7px;align-items:center}
+.tbl-scroll{overflow-x:auto}
+.tbl-scroll::-webkit-scrollbar{height:4px}
+.tbl-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+table{width:100%;border-collapse:collapse;min-width:1100px}
+thead tr{background:var(--s2)}
+th{font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.45px;padding:10px 14px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;user-select:none;position:sticky;top:0;background:var(--s2);z-index:10}
+th.sortable{cursor:pointer}
+th.sortable:hover{color:var(--ink2)}
+th .sort-ico{display:inline-flex;flex-direction:column;gap:1px;margin-left:4px;vertical-align:middle;opacity:.4}
+th .sort-ico svg{width:7px;height:7px}
+th.sort-asc .sort-ico,th.sort-desc .sort-ico{opacity:1}
+th:first-child{width:40px;padding-left:16px}
+
+td{border-bottom:.5px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.tdi{padding:13px 14px;transition:background .1s}
+tr:hover .tdi{background:#FAFAF6}
+tr.urgent{background:var(--rl)}
+tr.urgent .tdi{background:transparent}
+tr.urgent:hover .tdi{background:rgba(197,46,24,.06)}
+
+/* priority border */
+tr.p-urgent td:first-child .tdi{border-left:3px solid var(--red);padding-left:13px}
+tr.p-warn td:first-child .tdi{border-left:3px solid var(--amber);padding-left:13px}
+tr.p-ok td:first-child .tdi{border-left:3px solid var(--green);padding-left:13px}
+
+/* cell styles */
+.cell-date{font-size:12px;font-weight:600;color:var(--ink)}
+.cell-awb{font-size:11px;font-weight:600;color:var(--blue);cursor:pointer;font-family:'DM Sans',monospace}
+.cell-awb:hover{text-decoration:underline}
+.cell-oid{font-size:12px;font-weight:700;color:var(--blue);cursor:pointer}
+.cell-oid:hover{text-decoration:underline}
+
+/* weight details */
+.wd-row{font-size:11px;color:var(--ink2);line-height:1.55;display:flex;flex-direction:column;gap:2px}
+.wd-label{color:var(--ink3);font-weight:600}
+.wd-val{color:var(--ink);font-weight:500}
+
+/* applied weight */
+.aw-slab{font-size:12px;font-weight:600;color:var(--ink)}
+.aw-disc{font-size:10px;color:var(--ink3);margin-top:2px}
+
+/* weight charges */
+.wc-row{display:flex;flex-direction:column;gap:2px}
+.wc-line{font-size:11px;color:var(--ink2)}
+.wc-line .label{color:var(--ink3)}
+.wc-line .val{font-weight:600;color:var(--ink)}
+.charged-no{display:inline-flex;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--s3);color:var(--ink3);margin-top:3px}
+.charged-yes{display:inline-flex;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:var(--al);color:var(--amber);margin-top:3px}
+
+/* product */
+.prod-name{font-size:12px;font-weight:600;color:var(--ink);max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* status + actions */
+.status-col{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.act-btns{display:flex;gap:6px}
+.btn-accept{display:inline-flex;align-items:center;gap:4px;padding:0 12px;height:28px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;background:var(--green);color:#fff;transition:opacity .15s;white-space:nowrap}
+.btn-accept:hover{opacity:.88}
+.btn-accept:active{transform:scale(.97)}
+.btn-dispute{display:inline-flex;align-items:center;gap:4px;padding:0 12px;height:28px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;background:var(--red);color:#fff;transition:opacity .15s;white-space:nowrap}
+.btn-dispute:hover{opacity:.88}
+.btn-dispute:active{transform:scale(.97)}
+.btn-accepted-tag{display:inline-flex;align-items:center;gap:5px;padding:0 12px;height:28px;border-radius:6px;font-size:11px;font-weight:700;background:var(--gl);color:var(--green)}
+.btn-accepted-tag svg{width:11px;height:11px}
+.btn-disputed-tag{display:inline-flex;align-items:center;gap:5px;padding:0 12px;height:28px;border-radius:6px;font-size:11px;font-weight:700;background:var(--bl);color:var(--blue)}
+
+/* deadline */
+.deadline{font-size:10px;font-weight:700;white-space:nowrap}
+.dl-urgent{color:var(--red)}
+.dl-warn{color:var(--amber)}
+.dl-ok{color:var(--green)}
+
+/* weight discrepancy badge */
+.discrepancy{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap;margin-top:4px}
+.disc-up{background:var(--rl);color:var(--red)}
+.disc-match{background:var(--gl);color:var(--green)}
+
+/* Dispute modal */
+.modal-ov{position:fixed;inset:0;background:rgba(10,10,5,.55);z-index:700;display:none;align-items:flex-start;justify-content:center;padding:60px 20px;overflow-y:auto}
+.modal-ov.open{display:flex}
+.modal{background:var(--surface);border-radius:16px;width:100%;max-width:640px;margin:auto;overflow:hidden}
+.modal{animation:modalPop .22s cubic-bezier(.34,1.56,.64,1)}
+.mo-hdr{padding:22px 26px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.mo-title{font-size:17px;font-weight:700;letter-spacing:-.3px}
+.mo-sub{font-size:12px;color:var(--ink3);margin-top:3px}
+.mo-close{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--s2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--ink2);flex-shrink:0;transition:all .12s}
+.mo-close:hover{background:var(--s3)}
+.mo-body{padding:20px 26px}
+.mo-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.mo-row.one{grid-template-columns:1fr}
+.mo-field{display:flex;flex-direction:column;gap:5px}
+.mo-label{font-size:11px;font-weight:600;color:var(--ink2)}
+.mo-val{font-size:13px;font-weight:600;color:var(--ink);padding:9px 12px;background:var(--s2);border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',monospace}
+.mo-input{width:100%;height:40px;border:1.5px solid var(--border);border-radius:8px;padding:0 12px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--ink);background:var(--s2);outline:none;transition:border-color .15s,box-shadow .15s}
+.mo-input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--ol);background:var(--surface)}
+.mo-input::placeholder{color:var(--ink3)}
+.mo-textarea{width:100%;min-height:88px;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--ink);background:var(--s2);outline:none;resize:vertical;line-height:1.5;transition:border-color .15s,box-shadow .15s}
+.mo-textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--ol);background:var(--surface)}
+.mo-textarea::placeholder{color:var(--ink3)}
+.mo-select{width:100%;height:40px;border:1.5px solid var(--border);border-radius:8px;padding:0 28px 0 12px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--ink);background:var(--s2) url("data:image/svg+xml,%3Csvg width='10' height='6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239B998F' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center;-webkit-appearance:none;outline:none;cursor:pointer}
+.mo-select:focus{border-color:var(--orange)}
+.mo-hint{font-size:11px;color:var(--ink3);margin-top:4px;line-height:1.5}
+/* Evidence upload */
+.upload-zone{border:2px dashed #8EAFF0;border-radius:9px;padding:18px 16px;text-align:center;cursor:pointer;transition:all .15s;background:#F7FBFF}
+.upload-zone:hover{border-color:var(--blue);background:var(--bl)}
+.upload-zone svg{width:22px;height:22px;color:var(--blue);display:block;margin:0 auto 7px}
+.upload-zone-t{font-size:12px;color:var(--blue);font-weight:500}
+.upload-zone-s{font-size:11px;color:var(--ink3);margin-top:2px}
+.mo-ft{padding:14px 26px;border-top:1px solid var(--border);background:var(--s2);display:flex;justify-content:flex-end;gap:9px}
+.mo-btn-cancel{padding:0 18px;height:38px;border-radius:9px;font-size:13px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--ink2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.mo-btn-cancel:hover{border-color:var(--border2)}
+.mo-btn-submit{padding:0 22px;height:38px;border-radius:9px;font-size:13px;font-weight:700;border:none;background:var(--red);color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s}
+.mo-btn-submit:hover{opacity:.88}
+.mo-btn-submit:active,.mo-btn-cancel:active{transform:scale(.97)}
+
+/* Accept confirm modal */
+.mo-btn-accept{padding:0 22px;height:38px;border-radius:9px;font-size:13px;font-weight:700;border:none;background:var(--green);color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s}
+.mo-btn-accept:hover{opacity:.88}
+
+/* info banner */
+.info-banner{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:var(--al);border:1px solid var(--am);border-radius:9px;margin-bottom:16px}
+.info-banner svg{width:15px;height:15px;color:var(--amber);flex-shrink:0;margin-top:1px}
+.info-banner-txt{font-size:12px;color:var(--amber);line-height:1.5}
+.info-banner-txt b{font-weight:700;color:var(--amber)}
+
+/* Pagination */
+.tbl-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--s2);border-top:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.pg-info{font-size:11px;color:var(--ink3)}.pg-info b{color:var(--ink);font-weight:600}
+.pg-wrap{display:flex;align-items:center;gap:5px}
+.pg-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:var(--ink2);transition:all .12s}
+.pg-btn:hover{border-color:var(--border2)}
+.pg-btn.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+
+/* filter dropdown */
+.flt-wrap{position:relative}
+.flt-dd{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 32px rgba(0,0,0,.11);min-width:240px;z-index:500;display:none;overflow:hidden}
+.flt-dd.open{display:block}
+.flt-dd-hdr{padding:12px 14px 8px;font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.flt-row{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .1s}
+.flt-row:last-child{border-bottom:none}
+.flt-row:hover{background:var(--s2)}
+.flt-label{font-size:12px;color:var(--ink2)}
+.flt-chk{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.flt-row.on .flt-chk{background:var(--orange);border-color:var(--orange)}
+.flt-row.on .flt-chk::after{content:'';width:8px;height:8px;background:#fff url("data:image/svg+xml,%3Csvg viewBox='0 0 10 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 5l2 2 4-4' stroke='%23fff' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center;background-size:8px}
+.flt-row.on .flt-label{color:var(--orange);font-weight:600}
+.flt-foot{display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;border-top:1px solid var(--border);background:var(--s2)}
+.flt-apply{padding:0 14px;height:28px;border-radius:7px;font-size:12px;font-weight:600;border:none;background:var(--orange);color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif}
+.flt-clr{padding:0 12px;height:28px;border-radius:7px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--ink2);cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--ink);color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:500;z-index:900;transition:transform .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<nav class="sb">
+  <div class="sb-logo"><svg viewBox="0 0 20 20"><path d="M3 10L10 3l7 7M5 8.5v9h4v-5h2v5h4v-9"/></svg></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h8M4 12h10M4 16h6" stroke-linecap="round"/></svg></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 15l4-4 3 3 4-5 3 3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 18h14" stroke-linecap="round"/></svg></div>
+  <div class="sb-sep"></div>
+  <div class="sb-i on"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2a5 5 0 015 5v3h1.5l1 3H2.5l1-3H5V7a5 5 0 015-5z" stroke-linejoin="round"/><path d="M8 14a2 2 0 004 0" stroke-linecap="round"/></svg></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 7h14M7 7v11" stroke-linecap="round"/></svg></div>
+  <div class="sb-f"></div>
+  <div class="sb-sep"></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="7" r="3.5"/><path d="M3 18c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5" stroke-linecap="round"/></svg></div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="tb-srch">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3" stroke-linecap="round"/></svg>
+      <input type="text" placeholder="Search by AWB, Order ID, product..."/>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-r">
+      <button class="tbtn" onclick="toast('Exporting data...')">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 9.5V2M4 6.5l3 3 3-3" stroke-linecap="round"/><path d="M2 12h10" stroke-linecap="round"/></svg>
+        Export
+      </button>
+      <button class="tbtn tbtn-p" onclick="toast('Switching to Old Reconciliation...')">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M7 4.5v3l2 1.5" stroke-linecap="round"/></svg>
+        Old Weight Reconciliation
+      </button>
+      <div class="av">MR</div>
+    </div>
+  </div>
+
+  <!-- PAGE BODY -->
+  <div class="page">
+
+    <!-- PAGE HEADER -->
+    <div class="ph">
+      <div class="ph-left">
+        <div class="ph-icon">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2l2.5 5 5.5.8-4 3.9.9 5.5L10 14.8l-4.9 2.4.9-5.5L2 7.8l5.5-.8L10 2z" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="ph-title">Weight Reconciliation</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">Review courier-applied weight and accept or dispute discrepancies</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INFO BANNER -->
+    <div class="info-banner">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 10h.01" stroke-linecap="round"/></svg>
+      <div class="info-banner-txt"><b>Weight dispute window is 7 days.</b> Rows showing <span style="color:var(--red);font-weight:700">0 day(s) left</span> will auto-accept today. <b>5 orders</b> need your action before midnight.</div>
+    </div>
+
+    <!-- KPI STRIP -->
+    <div class="kpi-strip">
+      <div class="kpi-card on" style="box-shadow:0 0 0 2px var(--orange)" onclick="filterTab('all')">
+        <div class="kpi-bar" style="background:var(--orange)"></div>
+        <div class="kpi-lbl">Total Records</div>
+        <div class="kpi-n">184</div>
+        <div class="kpi-sub">This billing period</div>
+        <div class="kpi-tag" style="background:var(--s3);color:var(--ink2)">
+          <svg viewBox="0 0 8 8" fill="currentColor" width="7" height="7"><circle cx="4" cy="4" r="3.5"/></svg>
+          All records
+        </div>
+      </div>
+      <div class="kpi-card" onclick="filterTab('action')" style="cursor:pointer">
+        <div class="kpi-bar" style="background:var(--red)"></div>
+        <div class="kpi-lbl">Action Required</div>
+        <div class="kpi-n" style="color:var(--red)">28</div>
+        <div class="kpi-sub">₹3.2K at risk of auto-accept</div>
+        <div class="kpi-tag" style="background:var(--rl);color:var(--red)">
+          <span class="kpi-dot blink" style="background:var(--red)"></span>
+          Act before midnight
+        </div>
+      </div>
+      <div class="kpi-card" onclick="filterTab('dispute')">
+        <div class="kpi-bar" style="background:var(--blue)"></div>
+        <div class="kpi-lbl">Open Disputes</div>
+        <div class="kpi-n" style="color:var(--blue)">12</div>
+        <div class="kpi-sub">Under review by XpressBees</div>
+        <div class="kpi-tag" style="background:var(--bl);color:var(--blue)">
+          <svg viewBox="0 0 8 8" fill="currentColor" width="7" height="7"><circle cx="4" cy="4" r="3.5"/></svg>
+          In progress
+        </div>
+      </div>
+      <div class="kpi-card" onclick="filterTab('accepted')">
+        <div class="kpi-bar" style="background:var(--green)"></div>
+        <div class="kpi-lbl">Accepted / Resolved</div>
+        <div class="kpi-n" style="color:var(--green)">144</div>
+        <div class="kpi-sub">₹18.4K charges confirmed</div>
+        <div class="kpi-tag" style="background:var(--gl);color:var(--green)">
+          <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" width="9" height="9"><path d="M2 5l2 2 4-4" stroke-linecap="round"/></svg>
+          Settled
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs-row">
+      <div class="tab on" id="tab-all" onclick="switchTab('all',this)">All<span class="tab-cnt">184</span></div>
+      <div class="tab" id="tab-action" onclick="switchTab('action',this)">Action Required<span class="tab-cnt">28</span></div>
+      <div class="tab" id="tab-accepted" onclick="switchTab('accepted',this)">Accepted<span class="tab-cnt">144</span></div>
+      <div class="tab" id="tab-open" onclick="switchTab('open',this)">Open Disputes<span class="tab-cnt">12</span></div>
+      <div class="tab" id="tab-closed" onclick="switchTab('closed',this)">Closed Disputes<span class="tab-cnt">0</span></div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="tbl-wrap">
+      <!-- toolbar -->
+      <div class="tbl-toolbar">
+        <div class="tbl-count">Showing <b id="row-count">5</b> of <b>184</b> records</div>
+        <div class="tbl-actions">
+          <!-- bulk accept -->
+          <button class="tbtn" id="bulk-accept-btn" style="display:none" onclick="bulkAccept()">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7l3 3 7-7" stroke-linecap="round"/></svg>
+            Accept Selected
+          </button>
+          <!-- filter -->
+          <div class="flt-wrap">
+            <button class="tbtn" id="flt-btn" onclick="toggleFilter()">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h12M3 7h8M5 11h4" stroke-linecap="round"/></svg>
+              Filters
+            </button>
+            <div class="flt-dd" id="flt-dd">
+              <div class="flt-dd-hdr">Filter by Applied Slab</div>
+              <div class="flt-row on" onclick="toggleFlt(this)"><span class="flt-label">All Slabs</span><div class="flt-chk"></div></div>
+              <div class="flt-row" onclick="toggleFlt(this)"><span class="flt-label">500g – 1000g</span><div class="flt-chk"></div></div>
+              <div class="flt-row" onclick="toggleFlt(this)"><span class="flt-label">1001g – 2000g</span><div class="flt-chk"></div></div>
+              <div class="flt-row" onclick="toggleFlt(this)"><span class="flt-label">2001g – 5000g</span><div class="flt-chk"></div></div>
+              <div class="flt-row" onclick="toggleFlt(this)"><span class="flt-label">5000g+</span><div class="flt-chk"></div></div>
+              <div class="flt-dd-hdr" style="padding-top:8px">Charged to wallet</div>
+              <div class="flt-row" onclick="toggleFlt(this)"><span class="flt-label">Charged: Yes</span><div class="flt-chk"></div></div>
+              <div class="flt-row" onclick="toggleFlt(this)"><span class="flt-label">Charged: No</span><div class="flt-chk"></div></div>
+              <div class="flt-foot">
+                <button class="flt-clr" onclick="document.getElementById('flt-dd').classList.remove('open');toast('Filters cleared')">Clear</button>
+                <button class="flt-apply" onclick="document.getElementById('flt-dd').classList.remove('open');toast('Filters applied')">Apply</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- table -->
+      <div class="tbl-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" style="width:13px;height:13px;accent-color:var(--orange)" onchange="toggleSelectAll(this)"/></th>
+              <th class="sortable" onclick="sortCol(this)">
+                Weight Applied Date
+                <span class="sort-ico"><svg viewBox="0 0 7 5" fill="currentColor"><path d="M3.5 0L7 5H0z"/></svg><svg viewBox="0 0 7 5" fill="currentColor" style="transform:rotate(180deg)"><path d="M3.5 0L7 5H0z"/></svg></span>
+              </th>
+              <th>AWB Number</th>
+              <th>Order ID</th>
+              <th>Entered Weight</th>
+              <th>Applied Weight</th>
+              <th>Weight Charges</th>
+              <th>Product</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+
+      <!-- footer -->
+      <div class="tbl-foot">
+        <div class="pg-info">Showing <b>1 – 5</b> of <b>184</b> records</div>
+        <div class="pg-wrap">
+          <div class="pg-btn">←</div>
+          <div class="pg-btn on">1</div>
+          <div class="pg-btn">2</div>
+          <div class="pg-btn">3</div>
+          <div style="padding:0 6px;font-size:11px;color:var(--ink3)">…</div>
+          <div class="pg-btn">37</div>
+          <div class="pg-btn">→</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- ═══ DISPUTE MODAL ═══ -->
+<div class="modal-ov" id="dispute-modal" onclick="closeMoOv(event,'dispute-modal')">
+  <div class="modal">
+    <div class="mo-hdr">
+      <div>
+        <div class="mo-title">Raise Weight Dispute</div>
+        <div class="mo-sub">Provide supporting details for your dispute claim</div>
+      </div>
+      <div class="mo-close" onclick="closeMo('dispute-modal')">✕</div>
+    </div>
+    <div class="mo-body">
+      <!-- shipment info read-only -->
+      <div class="mo-row" style="margin-bottom:16px">
+        <div class="mo-field"><div class="mo-label">Order ID</div><div class="mo-val" id="d-oid">—</div></div>
+        <div class="mo-field"><div class="mo-label">AWB Number</div><div class="mo-val" id="d-awb">—</div></div>
+      </div>
+      <div class="mo-row" style="margin-bottom:16px">
+        <div class="mo-field"><div class="mo-label">Applied Weight (Courier)</div><div class="mo-val" id="d-cw" style="color:var(--red)">—</div></div>
+        <div class="mo-field"><div class="mo-label">Your Entered Weight</div><div class="mo-val" id="d-ew">—</div></div>
+      </div>
+      <div class="mo-row" style="margin-bottom:14px">
+        <div class="mo-field">
+          <div class="mo-label">Your Claimed Weight (g) <span style="color:var(--red)">*</span></div>
+          <input class="mo-input" type="number" placeholder="e.g. 500" min="0"/>
+          <div class="mo-hint">Enter the actual weight of the shipment as measured by you</div>
+        </div>
+        <div class="mo-field">
+          <div class="mo-label">Dispute Reason <span style="color:var(--red)">*</span></div>
+          <select class="mo-select">
+            <option value="">Select reason</option>
+            <option>Dead weight mismatch</option>
+            <option>Volumetric weight incorrect</option>
+            <option>Wrong dimensions recorded</option>
+            <option>Product weight misclassified</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="mo-row one" style="margin-bottom:14px">
+        <div class="mo-field">
+          <div class="mo-label">Supporting Evidence (optional)</div>
+          <div class="upload-zone" onclick="toast('File picker opening...')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V8M9 11l3-3 3 3" stroke-linecap="round"/><path d="M20 16.5A3.5 3.5 0 0 0 16.5 13H15A5 5 0 1 0 6 15h-.5A3.5 3.5 0 1 0 5.5 22H18a3 3 0 0 0 2-5.5z"/></svg>
+            <div class="upload-zone-t">Upload weight screenshot or image</div>
+            <div class="upload-zone-s">JPG, PNG, PDF up to 5MB</div>
+          </div>
+        </div>
+      </div>
+      <div class="mo-row one">
+        <div class="mo-field">
+          <div class="mo-label">Additional Notes (optional)</div>
+          <textarea class="mo-textarea" placeholder="Add any additional context for the dispute..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="mo-ft">
+      <button class="mo-btn-cancel" onclick="closeMo('dispute-modal')">Cancel</button>
+      <button class="mo-btn-submit" onclick="submitDispute()">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" style="width:12px;height:12px;margin-right:5px"><path d="M2 11L12 2M12 2H5M12 2v7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Raise Dispute
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ACCEPT CONFIRM MODAL ═══ -->
+<div class="modal-ov" id="accept-modal" onclick="closeMoOv(event,'accept-modal')">
+  <div class="modal" style="max-width:480px">
+    <div class="mo-hdr">
+      <div>
+        <div class="mo-title">Confirm Acceptance</div>
+        <div class="mo-sub">You are accepting the courier-applied weight and charges</div>
+      </div>
+      <div class="mo-close" onclick="closeMo('accept-modal')">✕</div>
+    </div>
+    <div class="mo-body">
+      <div style="padding:18px;background:var(--gl);border:1px solid var(--gm);border-radius:10px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
+        <svg viewBox="0 0 16 16" fill="none" stroke="var(--green)" stroke-width="1.5" style="width:18px;height:18px;flex-shrink:0;margin-top:1px"><path d="M2 8l4 4 8-8" stroke-linecap="round"/></svg>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:4px">Accepting: Order <span id="a-oid">—</span></div>
+          <div style="font-size:12px;color:var(--green);line-height:1.5">Applied weight: <b id="a-cw">—</b> · Charges: <b id="a-charges">—</b><br/>This action cannot be undone after confirmation.</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--ink2);line-height:1.6;padding:12px 14px;background:var(--s2);border:1px solid var(--border);border-radius:8px">By accepting, you confirm the courier's weight measurement is accurate and agree to the applied charges. The amount will be deducted from your wallet if not already charged.</div>
+    </div>
+    <div class="mo-ft">
+      <button class="mo-btn-cancel" onclick="closeMo('accept-modal')">Cancel</button>
+      <button class="mo-btn-accept" onclick="confirmAccept()">Confirm Accept</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast-el"></div>
+
+<script>
+/* ── DATA ── */
+const ROWS = [
+  {
+    id:1, date:'2026-04-03', awb:'14344961204563', oid:'#416648',
+    entered:{dead:'500g', dims:'10×10×2', slab:'500g', vol:'40g'},
+    applied:'1000g', appliedSlab:'Applied Slab',
+    charges:{fwd:'₹42', rto:'₹42', charged:false},
+    product:'Inspired By Occì FL0r@ Per...', deadline:1, status:'action'
+  },
+  {
+    id:2, date:'2026-04-02', awb:'14344961053998', oid:'#411274',
+    entered:{dead:'500g', dims:'10×10×02', slab:'500g', vol:'40g'},
+    applied:'1000g', appliedSlab:'Applied Slab',
+    charges:{fwd:'₹42', rto:null, charged:false},
+    product:'Inspired By Occì FL0r@ Per...', deadline:0, status:'action'
+  },
+  {
+    id:3, date:'2026-04-02', awb:'14344961054147', oid:'#410956',
+    entered:{dead:'500g', dims:'10×10×2', slab:'500g', vol:'40g'},
+    applied:'3000g', appliedSlab:'Applied Slab',
+    charges:{fwd:'₹210', rto:null, charged:false},
+    product:'Inspired By Versace Bright ...', deadline:0, status:'action'
+  },
+  {
+    id:4, date:'2026-04-02', awb:'14344961127731', oid:'#413769',
+    entered:{dead:'500g', dims:'10×10×2', slab:'500g', vol:'40g'},
+    applied:'2500g', appliedSlab:'Applied Slab',
+    charges:{fwd:'₹168', rto:null, charged:false},
+    product:'Inspired By D 0ff Cool W@te...', deadline:0, status:'action'
+  },
+  {
+    id:5, date:'2026-04-02', awb:'14344961142679', oid:'#414144',
+    entered:{dead:'500g', dims:'10×10×2', slab:'500g', vol:'40g'},
+    applied:'1000g', appliedSlab:'Applied Slab',
+    charges:{fwd:'₹42', rto:'₹42', charged:false},
+    product:'Eden Apple Perfume 100ml - ...', deadline:0, status:'action'
+  },
+];
+
+let rowStates = {}; // id → 'accepted' | 'disputed' | null
+let selectedRows = new Set();
+let activeTab = 'all';
+
+function getDiscrepancy(entered, applied) {
+  const e = parseInt(entered);
+  const a = parseInt(applied);
+  if (a > e) return { label: `+${a-e}g over`, cls: 'disc-up' };
+  return { label: 'Matches', cls: 'disc-match' };
+}
+
+function buildRow(r) {
+  const state = rowStates[r.id];
+  const isSelected = selectedRows.has(r.id);
+  const disc = getDiscrepancy(r.entered.dead, r.applied);
+  const deadlineClass = r.deadline === 0 ? 'dl-urgent' : r.deadline === 1 ? 'dl-warn' : 'dl-ok';
+  const deadlineText = r.deadline === 0 ? '0 day(s) left' : `${r.deadline} day(s) left`;
+
+  // priority border
+  let pClass = '';
+  if (state === 'accepted') pClass = 'p-ok';
+  else if (state === 'disputed') pClass = 'p-warn';
+  else if (r.deadline === 0) pClass = 'p-urgent';
+  else if (r.deadline === 1) pClass = 'p-warn';
+
+  // Action buttons / state badges
+  let actionHtml = '';
+  if (state === 'accepted') {
+    actionHtml = `<div class="btn-accepted-tag"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 6l3 3 5-5" stroke-linecap="round"/></svg>Accepted</div>`;
+  } else if (state === 'disputed') {
+    actionHtml = `<div class="btn-disputed-tag"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2v4M6 8h.01" stroke-linecap="round"/><circle cx="6" cy="6" r="5"/></svg>In Dispute</div>`;
+  } else {
+    actionHtml = `
+      <div class="act-btns">
+        <button class="btn-accept" onclick="openAccept(${r.id},'${r.oid}','${r.applied}','${r.charges.fwd}')">Accept</button>
+        <button class="btn-dispute" onclick="openDispute(${r.id},'${r.oid}','${r.awb}','${r.applied}','${r.entered.dead}')">Raise Dispute</button>
+      </div>
+      <div class="deadline ${deadlineClass}">${deadlineText}</div>`;
+  }
+
+  return `
+    <tr class="${pClass}" id="row-${r.id}">
+      <td><div class="tdi"><input type="checkbox" style="width:13px;height:13px;accent-color:var(--orange)" ${isSelected?'checked':''} onchange="toggleRow(this,${r.id})"/></div></td>
+      <td><div class="tdi">
+        <div class="cell-date">${r.date}</div>
+        <div class="cell-awb" onclick="toast('Tracking AWB ${r.awb}...')" style="margin-top:4px">${r.awb}</div>
+      </div></td>
+      <td><div class="tdi">
+        <div class="cell-oid" onclick="toast('Opening order ${r.oid}...')">${r.oid}</div>
+      </div></td>
+      <td><div class="tdi">
+        <div class="wd-row">
+          <div><span class="wd-label">Dead Weight</span> <span class="wd-val">${r.entered.dead}</span></div>
+          <div><span class="wd-label">L×B×H</span> <span class="wd-val">${r.entered.dims}</span></div>
+          <div><span class="wd-label">Charged Slab</span> <span class="wd-val">${r.entered.slab}</span></div>
+          <div><span class="wd-label">Volumetric</span> <span class="wd-val">${r.entered.vol}</span></div>
+        </div>
+      </div></td>
+      <td><div class="tdi">
+        <div class="aw-slab">${r.appliedSlab} : <span style="font-weight:700;color:${parseInt(r.applied)>parseInt(r.entered.dead)?'var(--red)':'var(--ink)'}">${r.applied}</span></div>
+        <div class="discrepancy ${disc.cls}" style="margin-top:6px">
+          ${disc.cls==='disc-up'?
+            '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 2v6M2 5l3-3 3 3" stroke-linecap="round"/></svg>':
+            '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 5l2 2 4-4" stroke-linecap="round"/></svg>'
+          }
+          ${disc.label}
+        </div>
+      </div></td>
+      <td><div class="tdi">
+        <div class="wc-row">
+          <div class="wc-line"><span class="label">Forward : </span><span class="val">${r.charges.fwd}</span></div>
+          ${r.charges.rto ? `<div class="wc-line"><span class="label">RTO : </span><span class="val">${r.charges.rto}</span></div>` : ''}
+          <div style="margin-top:5px">
+            ${r.charges.charged
+              ? '<span class="charged-yes">Charged ✓</span>'
+              : '<span class="charged-no">Not charged</span>'}
+          </div>
+        </div>
+      </div></td>
+      <td><div class="tdi">
+        <div class="prod-name">${r.product}</div>
+      </div></td>
+      <td><div class="tdi">
+        <div class="status-col">${actionHtml}</div>
+      </div></td>
+    </tr>`;
+}
+
+function render() {
+  let data = ROWS;
+  if (activeTab === 'action') data = ROWS.filter(r => !rowStates[r.id]);
+  else if (activeTab === 'accepted') data = ROWS.filter(r => rowStates[r.id] === 'accepted');
+  else if (activeTab === 'open') data = ROWS.filter(r => rowStates[r.id] === 'disputed');
+  else if (activeTab === 'closed') data = [];
+
+  document.getElementById('tbl-body').innerHTML = data.map(buildRow).join('');
+  document.getElementById('row-count').textContent = data.length;
+}
+
+render();
+
+/* ── TABS ── */
+function switchTab(id, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  activeTab = id;
+  selectedRows.clear();
+  document.getElementById('bulk-accept-btn').style.display = 'none';
+  render();
+}
+
+function filterTab(id) {
+  const el = document.getElementById('tab-' + id);
+  if (el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+    el.classList.add('on');
+    activeTab = id;
+    render();
+  }
+}
+
+/* ── SELECT ── */
+function toggleSelectAll(cb) {
+  document.querySelectorAll('#tbl-body input[type=checkbox]').forEach(c => {
+    c.checked = cb.checked;
+    const rowId = parseInt(c.closest('tr').id.replace('row-', ''));
+    if (cb.checked) selectedRows.add(rowId);
+    else selectedRows.delete(rowId);
+  });
+  document.getElementById('bulk-accept-btn').style.display = cb.checked && selectedRows.size > 0 ? 'inline-flex' : 'none';
+}
+function toggleRow(cb, id) {
+  if (cb.checked) selectedRows.add(id);
+  else selectedRows.delete(id);
+  document.getElementById('bulk-accept-btn').style.display = selectedRows.size > 0 ? 'inline-flex' : 'none';
+}
+function bulkAccept() {
+  selectedRows.forEach(id => { rowStates[id] = 'accepted'; });
+  selectedRows.clear();
+  document.getElementById('bulk-accept-btn').style.display = 'none';
+  render();
+  toast(`✓ ${selectedRows.size || 'Selected'} orders accepted`);
+}
+
+/* ── SORT ── */
+function sortCol(th) {
+  document.querySelectorAll('th').forEach(t => { t.classList.remove('sort-asc','sort-desc'); });
+  if (!th.classList.contains('sort-asc')) th.classList.add('sort-asc');
+  else { th.classList.remove('sort-asc'); th.classList.add('sort-desc'); }
+}
+
+/* ── FILTER ── */
+function toggleFilter() {
+  document.getElementById('flt-dd').classList.toggle('open');
+}
+function toggleFlt(row) {
+  row.classList.toggle('on');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.flt-wrap')) document.getElementById('flt-dd').classList.remove('open');
+});
+
+/* ── MODALS ── */
+let pendingAcceptId = null;
+
+function openDispute(id, oid, awb, courierW, enteredW) {
+  document.getElementById('d-oid').textContent = oid;
+  document.getElementById('d-awb').textContent = awb;
+  document.getElementById('d-cw').textContent = courierW;
+  document.getElementById('d-ew').textContent = enteredW;
+  document.getElementById('dispute-modal').classList.add('open');
+}
+
+function openAccept(id, oid, cw, charges) {
+  pendingAcceptId = id;
+  document.getElementById('a-oid').textContent = oid;
+  document.getElementById('a-cw').textContent = cw;
+  document.getElementById('a-charges').textContent = charges;
+  document.getElementById('accept-modal').classList.add('open');
+}
+
+function confirmAccept() {
+  if (pendingAcceptId !== null) {
+    rowStates[pendingAcceptId] = 'accepted';
+    pendingAcceptId = null;
+    closeMo('accept-modal');
+    render();
+    toast('✓ Weight charge accepted successfully');
+  }
+}
+
+function submitDispute() {
+  const modal = document.getElementById('dispute-modal');
+  // find which row was opened
+  const oidEl = document.getElementById('d-oid').textContent;
+  const row = ROWS.find(r => r.oid === oidEl);
+  if (row) rowStates[row.id] = 'disputed';
+  closeMo('dispute-modal');
+  render();
+  toast('✓ Dispute raised — XpressBees team will review within 48 hours');
+}
+
+function closeMo(id) { document.getElementById(id).classList.remove('open'); }
+function closeMoOv(e, id) { if (e.target.id === id) closeMo(id); }
+
+/* ── TOAST ── */
+function toast(msg) {
+  const t = document.getElementById('toast-el');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>

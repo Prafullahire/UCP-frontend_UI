@@ -15,7 +15,7 @@ export type OrderTabId =
   | 'rto'
   | 'all';
 
-export type PaymentMode = 'COD' | 'Prepaid';
+export type PaymentMode = 'COD' | 'Prepaid' | 'Pickup';
 
 /** Pending-grid status pill. NEW = fresh order, OLD = older import. */
 export type OrderAgeTag = 'NEW' | 'OLD';
@@ -151,6 +151,10 @@ export interface Shipment {
   pickup: OrderAddress;
   delivery: OrderAddress;
   payment: OrderPayment;
+
+  /** Product line — optional because not every tab surfaces a Product column.
+   *  RTO + future tabs render it so the seller can recognise the SKU coming back. */
+  product?: OrderProduct;
 
   /** Lifecycle status — see `ShipmentStatus` */
   status: ShipmentStatus;

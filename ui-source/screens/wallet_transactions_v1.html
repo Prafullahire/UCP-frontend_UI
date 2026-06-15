@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1440"/>
+<title>Wallet Transactions Â· Seller Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F4F3EF;--surface:#FFF;--s2:#F8F7F3;--s3:#EEECEA;
+  --border:#E2E0D8;--border2:#C5C3BB;
+  --ink:#1A190F;--ink2:#5C5B52;--ink3:#9B998F;
+  --orange:#E8520A;--ol:#FEF0E8;--om:#F5C09A;
+  --red:#C52E18;--rl:#FDECEA;
+  --green:#1A6B3A;--gl:#E7F5ED;--gm:#8DD4A9;
+  --amber:#9E5A00;--al:#FFF5E5;--am:#F5C878;
+  --blue:#1246A0;--bl:#EAF0FD;--bm:#8EAFF0;
+  --gray:#6B6A62;--gray-l:#EEECE9;--gray-m:#C3C1B8;
+  --radius:10px;--radius-sm:7px;
+  --shadow:0 1px 3px rgba(0,0,0,.04);--shadow-md:0 2px 8px rgba(0,0,0,.07);
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--ink);font-size:13px;line-height:1.5;overflow:hidden}
+.shell{display:flex;height:100vh}
+.sb{width:54px;background:#0F0E09;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:14px 0 18px;gap:4px}
+.sb-logo{width:34px;height:34px;background:var(--orange);border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.sb-logo svg{width:18px;height:18px;fill:#fff}
+.sb-i{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#46443C;transition:all .15s}
+.sb-i:hover{background:#1C1B14;color:#8A8878}.sb-i.on{background:var(--orange);color:#fff}.sb-i svg{width:16px;height:16px}
+.sb-sep{width:26px;height:1px;background:#222118;margin:5px 0}.sb-f{flex:1}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);padding:0 22px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:200}
+.tb-srch{flex:1;max-width:440px;display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:8px;height:34px;padding:0 12px}
+.tb-srch:focus-within{border-color:var(--orange);box-shadow:0 0 0 3px var(--ol)}
+.tb-srch svg{width:13px;height:13px;color:var(--ink3);flex-shrink:0}
+.tb-srch input{border:none;background:transparent;outline:none;font-family:var(--font);font-size:12px;color:var(--ink);width:100%}
+.tb-srch input::placeholder{color:var(--ink3)}
+.tb-sep{width:1px;height:20px;background:var(--border)}
+.tb-r{display:flex;align-items:center;gap:8px;margin-left:auto}
+.tbtn{display:inline-flex;align-items:center;gap:5px;padding:0 13px;height:32px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--ink2);font-family:var(--font);transition:all .15s;white-space:nowrap}
+.tbtn:hover{border-color:var(--border2)}.tbtn-p{background:var(--orange);color:#fff;border-color:var(--orange)}.tbtn-p:hover{opacity:.88}
+.av{width:30px;height:30px;border-radius:50%;background:var(--ol);border:1.5px solid var(--om);font-size:11px;font-weight:700;color:var(--orange);display:flex;align-items:center;justify-content:center}
+.page{flex:1;overflow-y:auto;padding:20px 22px 60px}.page::-webkit-scrollbar{width:6px}.page::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.ph-title{font-size:20px;font-weight:700;letter-spacing:-.4px}.ph-sub{font-size:12px;color:var(--ink3);margin-top:2px}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.kpi-w{background:var(--surface);border:1.5px solid var(--border);border-radius:13px;padding:18px 20px;position:relative;overflow:hidden}
+.kpi-w:hover{border-color:var(--border2)}
+.kpi-w-bar{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:13px 0 0 13px}
+.kpi-w-lbl{font-size:11px;font-weight:600;color:var(--ink3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.kpi-w-n{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1;color:var(--ink)}
+.kpi-w-sub{font-size:10px;color:var(--ink3);margin-top:4px}
+.w-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px}
+.w-tab{padding:10px 22px;font-size:13px;font-weight:600;color:var(--ink3);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap;user-select:none}
+.w-tab:hover{color:var(--ink2)}.w-tab.on{color:var(--ink);border-bottom-color:var(--orange)}
+.w-tp{display:none}.w-tp.on{display:block}
+.fbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
+.fb-lbl{font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.fdiv{width:1px;height:20px;background:var(--border);flex-shrink:0}
+.fc{display:flex;align-items:center;gap:6px;padding:0 11px;height:30px;border-radius:8px;background:var(--s2);border:1.5px solid var(--border);font-size:12px;font-weight:500;color:var(--ink2);cursor:pointer;white-space:nowrap;user-select:none;transition:all .15s}
+.fc:hover{border-color:var(--border2)}.fc.on{border-color:var(--orange);background:var(--ol);color:var(--orange)}
+.fc-exp{margin-left:auto}
+.tw{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.ts{overflow-x:auto}
+table.wtbl{width:100%;border-collapse:collapse;min-width:1000px}
+.wtbl thead tr{background:var(--s2)}
+.wtbl th{font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.45px;padding:11px 16px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.wtbl td{padding:14px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--ink2);vertical-align:middle}
+.wtbl tr:last-child td{border-bottom:none}
+.wtbl tr:hover td{background:var(--s2)}
+.wtbl .td-date{font-size:12px;font-weight:600;color:var(--ink)}
+.wtbl .td-time{font-size:10px;color:var(--ink3);margin-top:1px}
+.wtbl .td-mono{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.wtbl .td-link{font-family:var(--mono);font-weight:600;color:var(--blue);cursor:pointer;text-decoration:none}
+.wtbl .td-link:hover{text-decoration:underline}
+.wtbl .td-credit{font-family:var(--mono);font-weight:700;color:var(--green)}
+.wtbl .td-debit{font-family:var(--mono);font-weight:700;color:var(--ink)}
+.wtbl .td-bal{font-family:var(--mono);font-weight:600;color:var(--ink);text-align:right}
+.tf{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--s2);border-top:1px solid var(--border)}
+.tf-info{font-size:11px;color:var(--ink3)}
+.tf-info b{color:var(--ink);font-weight:600}
+.pgw{display:flex;align-items:center;gap:5px}
+.pgb{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:var(--ink2);transition:all .12s}
+.pgb:hover{border-color:var(--border2)}.pgb.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+.pp-sel{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink2)}
+.pp-sel select{border:1px solid var(--border);border-radius:5px;padding:2px 6px;font-size:11px;font-family:var(--font);color:var(--ink);background:var(--surface);outline:none}
+.mo-ov{position:fixed;inset:0;background:rgba(10,10,5,.55);z-index:700;display:none;align-items:center;justify-content:center;padding:20px}
+.mo-ov.sh{display:flex}
+.mo{background:var(--surface);border-radius:16px;width:100%;max-width:440px;overflow:hidden;animation:mop .22s cubic-bezier(.34,1.56,.64,1)}
+@keyframes mop{from{transform:translateY(12px) scale(.97);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.mo-hdr{padding:22px 24px 18px;display:flex;justify-content:space-between;align-items:flex-start}
+.mo-title{font-size:18px;font-weight:700;letter-spacing:-.3px}
+.mo-bal{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green);display:flex;align-items:center;gap:4px}
+.mo-x{width:32px;height:32px;border-radius:9px;border:1px solid var(--border);background:var(--s2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--ink2);flex-shrink:0;transition:all .12s}
+.mo-x:hover{background:var(--s3)}
+.mo-body{padding:0 24px 20px}
+.mo-info{font-size:12px;color:var(--green);background:var(--gl);border:1px solid var(--gm);border-radius:8px;padding:8px 14px;margin-bottom:18px;font-weight:500}
+.mo-amt{text-align:center;margin-bottom:16px}
+.mo-amt-cur{font-size:11px;color:var(--ink3);margin-bottom:4px}
+.mo-amt-val{font-family:var(--mono);font-size:36px;font-weight:700;color:var(--ink);letter-spacing:-1px}
+.mo-amt-line{width:80px;height:2px;border-radius:1px;background:var(--border);margin:8px auto 0;border-top:2px dashed var(--border2)}
+.mo-presets{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.mo-pre{padding:6px 18px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;font-family:var(--font);transition:all .15s}
+.mo-pre:hover{border-color:var(--orange);color:var(--orange)}
+.mo-pre.on{border-color:var(--orange);background:var(--ol);color:var(--orange)}
+.mo-sec{margin-bottom:16px}
+.mo-sec-t{font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:8px}
+.mo-coupon{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border:1.5px solid var(--gm);background:var(--gl);border-radius:8px;margin-bottom:16px}
+.mo-coupon-l{font-size:12px;font-weight:600;color:var(--ink)}
+.mo-coupon-r{font-size:12px;font-weight:700;color:var(--orange);cursor:pointer}
+.mo-summary{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:20px}
+.mo-sum-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mo-sum-hdr span{font-size:12px;font-weight:600;color:var(--ink)}
+.mo-sum-hdr a{font-size:11px;font-weight:600;color:var(--ink3);cursor:pointer;text-decoration:none}
+.mo-sum-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;color:var(--ink2)}
+.mo-sum-row.total{border-top:1px solid var(--border);padding-top:10px;margin-top:4px;font-weight:700;color:var(--ink);font-size:13px}
+.mo-sum-row .mono{font-family:var(--mono);font-weight:700}
+.mo-pay{width:100%;height:44px;border-radius:10px;border:none;background:var(--orange);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);transition:opacity .15s;letter-spacing:-.2px}
+.mo-pay:hover{opacity:.88}
+.fade{animation:fadeIn .3s ease}@keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="shell">
+<nav class="sb">
+  <div class="sb-logo"><svg viewBox="0 0 20 20"><path d="M3 10L10 3l7 7M5 8.5v9h4v-5h2v5h4v-9"/></svg></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h12M4 8h8M4 12h10M4 16h6" stroke-linecap="round"/></svg></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 15l4-4 3 3 4-5 3 3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 18h14" stroke-linecap="round"/></svg></div>
+  <div class="sb-sep"></div>
+  <div class="sb-i on"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16" stroke-linecap="round"/></svg></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 6.5v4l2.5 2" stroke-linecap="round"/></svg></div>
+  <div class="sb-f"></div><div class="sb-sep"></div>
+  <div class="sb-i"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="7" r="3.5"/><path d="M3 18c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5" stroke-linecap="round"/></svg></div>
+</nav>
+<div class="main">
+<div class="topbar">
+  <div class="tb-srch"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3" stroke-linecap="round"/></svg><input type="text" placeholder="Search AWB, Order ID, UTR ID, TDS, CRF ID..."/></div>
+  <div class="tb-sep"></div>
+  <div class="tb-r"><button class="tbtn" onclick="openRecharge()">Recharge Wallet</button><button class="tbtn tbtn-p">Export</button><div class="av">MR</div></div>
+</div>
+<div class="page fade">
+  <div class="ph"><div><div class="ph-title">Wallet Transactions</div></div></div>
+  <div class="kpi-row">
+    <div class="kpi-w"><div class="kpi-w-bar" style="background:var(--green)"></div><div class="kpi-w-lbl">Current Usable Balance</div><div class="kpi-w-n">₹551.98</div></div>
+    <div class="kpi-w"><div class="kpi-w-bar" style="background:var(--gray-m)"></div><div class="kpi-w-lbl">Balance On Hold</div><div class="kpi-w-n">₹0.00</div></div>
+    <div class="kpi-w"><div class="kpi-w-bar" style="background:var(--blue)"></div><div class="kpi-w-lbl">Last Successful Recharge</div><div class="kpi-w-n">₹1,117.00</div></div>
+    <div class="kpi-w"><div class="kpi-w-bar" style="background:var(--green)"></div><div class="kpi-w-lbl">Amount Credited</div><div class="kpi-w-n">₹1,460.78</div><div class="kpi-w-sub">Last 30 days</div></div>
+    <div class="kpi-w"><div class="kpi-w-bar" style="background:var(--red)"></div><div class="kpi-w-lbl">Amount Debited</div><div class="kpi-w-n">₹1,464.38</div><div class="kpi-w-sub">Last 30 days</div></div>
+  </div>
+  <div class="w-tabs"><div class="w-tab on" onclick="switchWTab('txn',this)">Transaction</div><div class="w-tab" onclick="switchWTab('rech',this)">Recharge History</div></div>
+  <div class="w-tp on" id="wtp-txn">
+    <div class="fbar"><div class="fb-lbl">Filters</div><div class="fdiv"></div><div class="fc on">Last 30 days</div><div class="fc">Transaction Type</div><div class="fc">Sub Category</div><div class="fc-exp"><button class="tbtn">Download</button></div></div>
+    <div class="tw"><div class="ts"><table class="wtbl"><thead><tr><th>Transaction Date</th><th>Order ID</th><th>AWB Code</th><th>Transaction Type</th><th>Sub Category</th><th>Description</th><th style="text-align:right">Amount (₹)</th><th style="text-align:right">Available Balance (₹)</th></tr></thead><tbody id="txnBody"></tbody></table></div>
+      <div class="tf"><div class="tf-info">Showing <b>1 – 8</b> of <b>24</b> &nbsp;|&nbsp; <span class="pp-sel">Items per page: <select><option>15 Items</option><option>25 Items</option><option>50 Items</option></select></span></div><div class="pgw"><div class="pgb">←</div><div class="pgb on">1</div><div class="pgb">2</div><div class="pgb">→</div></div></div>
+    </div>
+  </div>
+  <div class="w-tp" id="wtp-rech">
+    <div class="fbar"><div class="fb-lbl">Filters</div><div class="fdiv"></div><div class="fc on">Last 30 days</div><div class="fc">Transaction Type</div><div class="fc">Sub Category</div><div class="fc-exp"><button class="tbtn">Download</button></div></div>
+    <div class="tw"><div class="ts"><table class="wtbl"><thead><tr><th>Date</th><th>Transaction Date</th><th>Particulars</th><th style="text-align:right">Debit (₹)</th><th style="text-align:right">Credit (₹)</th><th>Description</th><th style="text-align:right">Available Balance (₹)</th></tr></thead><tbody id="rechBody"></tbody></table></div>
+      <div class="tf"><div class="tf-info">Showing <b>1 – 6</b> of <b>6</b> &nbsp;|&nbsp; <span class="pp-sel">Items per page: <select><option>15 Items</option></select></span></div><div class="pgw"><div class="pgb">←</div><div class="pgb on">1</div><div class="pgb">→</div></div></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+<div class="mo-ov" id="moRecharge" onclick="if(event.target===this)closeRecharge()">
+<div class="mo">
+  <div class="mo-hdr"><div><div class="mo-title">Recharge Your Wallet</div></div><div style="display:flex;align-items:center;gap:12px"><div class="mo-bal">₹551.98</div><div class="mo-x" onclick="closeRecharge()">✕</div></div></div>
+  <div class="mo-body">
+    <div class="mo-info">Minimum balance required to ship is now <s>₹500</s> ₹200</div>
+    <div class="mo-amt"><div class="mo-amt-cur">₹</div><div class="mo-amt-val" id="moAmtVal">200</div><div class="mo-amt-line"></div></div>
+    <div class="mo-presets"><div class="mo-pre" onclick="setAmt(500,this)">₹500</div><div class="mo-pre" onclick="setAmt(1000,this)">₹1000</div><div class="mo-pre" onclick="setAmt(2000,this)">₹2000</div><div class="mo-pre" onclick="setAmt(5000,this)">₹5000</div></div>
+    <div class="mo-sec"><div class="mo-sec-t">Offers & Bill Summary</div></div>
+    <div class="mo-coupon"><div class="mo-coupon-l">Have Coupon Code?</div><div class="mo-coupon-r">Add Coupon</div></div>
+    <div class="mo-summary"><div class="mo-sum-hdr"><span>Amount to be credited: <b id="moCredit">₹200</b></span><a>Hide Bill Summary</a></div><div class="mo-sum-row"><span>Recharge Amount</span><span class="mono" id="moRechAmt">₹200</span></div><div class="mo-sum-row total"><span>Payable Amount</span><span class="mono" id="moPayable">₹200</span></div></div>
+    <button class="mo-pay" id="moPayBtn" onclick="closeRecharge()">Pay ₹200</button>
+  </div>
+</div>
+</div>
+<script>
+function switchWTab(id,el){document.querySelectorAll(".w-tab").forEach(function(t){t.classList.remove("on")});document.querySelectorAll(".w-tp").forEach(function(p){p.classList.remove("on")});el.classList.add("on");document.getElementById("wtp-"+id).classList.add("on")}
+function openRecharge(){document.getElementById("moRecharge").classList.add("sh")}
+function closeRecharge(){document.getElementById("moRecharge").classList.remove("sh")}
+function setAmt(v,el){document.querySelectorAll(".mo-pre").forEach(function(p){p.classList.remove("on")});el.classList.add("on");document.getElementById("moAmtVal").textContent=v;document.getElementById("moCredit").textContent="\u20B9"+v;document.getElementById("moRechAmt").textContent="\u20B9"+v;document.getElementById("moPayable").textContent="\u20B9"+v;document.getElementById("moPayBtn").textContent="Pay \u20B9"+v}
+var txns=[
+  {date:"06 May, 2026",time:"03:12 PM",oid:"5629447216-C",awb:"1504872392492",type:"Freight Charges",sub:"Freight COD",desc:"COD charges Reversed",amt:"+48.35",credit:true,bal:"551.98"},
+  {date:"06 May, 2026",time:"03:12 PM",oid:"5629447216-C",awb:"1504872392492",type:"Freight Charges",sub:"Freight Forward",desc:"Forward charges Reversed",amt:"+205.46",credit:true,bal:"503.63"},
+  {date:"06 May, 2026",time:"03:11 PM",oid:"5629447216-C",awb:"1504872392492",type:"VAS",sub:"WhatsApp Communication",desc:"WhatsApp Communication charges",amt:"-1.17",credit:false,bal:"298.17"},
+  {date:"06 May, 2026",time:"03:08 PM",oid:"5629447216-C",awb:"1504872392492",type:"Freight Charges",sub:"Freight COD",desc:"COD charges applied",amt:"-48.35",credit:false,bal:"299.34"},
+  {date:"06 May, 2026",time:"03:08 PM",oid:"5629447216-C",awb:"1504872392492",type:"Freight Charges",sub:"Freight Forward",desc:"Forward charges applied",amt:"-205.46",credit:false,bal:"347.69"},
+  {date:"05 May, 2026",time:"11:42 AM",oid:"5629447215-B",awb:"1504872392481",type:"Freight Charges",sub:"Freight Forward",desc:"Forward charges applied",amt:"-186.20",credit:false,bal:"553.15"},
+  {date:"05 May, 2026",time:"11:40 AM",oid:"5629447215-B",awb:"1504872392481",type:"Freight Charges",sub:"Freight COD",desc:"COD charges applied",amt:"-42.10",credit:false,bal:"739.35"},
+  {date:"04 May, 2026",time:"09:15 AM",oid:"5629447214-A",awb:"1504872392470",type:"VAS",sub:"WhatsApp Communication",desc:"WhatsApp Communication charges",amt:"-1.17",credit:false,bal:"781.45"}
+];
+document.getElementById("txnBody").innerHTML=txns.map(function(t){
+  return '<tr><td><div class="td-date">'+t.date+'</div><div class="td-time">'+t.time+'</div></td><td class="td-mono">'+t.oid+'</td><td><a class="td-link">'+t.awb+'</a></td><td>'+t.type+'</td><td>'+t.sub+'</td><td>'+t.desc+'</td><td style="text-align:right" class="'+(t.credit?"td-credit":"td-debit")+'">'+((t.credit?"+ ":"- ")+"\u20B9 "+t.amt.replace(/[+-]/,""))+'</td><td class="td-bal">\u20B9 '+t.bal+'</td></tr>';
+}).join("");
+var rechs=[
+  {date:"04 May, 2026",tdate:"04 May, 2026",part:"VAS Invoice",debit:"-3.51",credit:"0",desc:"SRV27HR000065336 Invoice has been created",bal:"-553.15"},
+  {date:"03 Apr, 2026",tdate:"03 Apr, 2026",part:"VAS Invoice",debit:"-2.34",credit:"0",desc:"SRV27HR000004579 Invoice has been created",bal:"-556.66"},
+  {date:"30 Jan, 2026",tdate:"30 Jan, 2026",part:"International Invoice",debit:"-509",credit:"0",desc:"SRX26HR000047140 Invoice has been created",bal:"-559"},
+  {date:"10 Jan, 2026",tdate:"10 Jan, 2026",part:"Recharge",debit:"0",credit:"1117",desc:"Bank ReferenceNo: pay_S215DTu3iZoZrz | Order ID: order_S214un2YGvikPp | Payment Gateway: RZ-RD",bal:"-1068"},
+  {date:"16 Oct, 2025",tdate:"16 Oct, 2025",part:"International Invoice",debit:"-1492",credit:"0",desc:"SRX26HR000031229 Invoice has been created",bal:"49"},
+  {date:"26 Sep, 2025",tdate:"26 Sep, 2025",part:"Recharge",debit:"0",credit:"1065.21",desc:"Bank ReferenceNo: pay_RM7nlVTl67DyW6 | Order ID: order_RM7nWOXoSVGBrF | Payment Gateway: RZ-RD",bal:"-1443"}
+];
+document.getElementById("rechBody").innerHTML=rechs.map(function(r){
+  var isCredit=parseFloat(r.credit)>0;
+  return '<tr><td class="td-date">'+r.date+'</td><td>'+r.tdate+'</td><td>'+r.part+'</td><td style="text-align:right" class="td-debit">\u20B9 '+r.debit+'</td><td style="text-align:right" class="'+(isCredit?"td-credit":"td-debit")+'">\u20B9 '+r.credit+'</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.desc+'</td><td class="td-bal">\u20B9 '+r.bal+'</td></tr>';
+}).join("");
+</script>
+</body>
+</html>

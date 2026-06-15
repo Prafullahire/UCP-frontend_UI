@@ -15,6 +15,13 @@ interface ReportsStoreState {
   deleteConfirm: { open: boolean; id: number | null } | null;
   successModal: { open: boolean; title: string; rtype: string; freq: string } | null;
 
+  /* Wallet recharge popup — surfaced via the topbar wallet pill AND
+     the "+ Recharge Wallet" CTA on the Wallet Transactions screen. A
+     single store slot keeps both call-sites in sync and lets us mount
+     the modal once at the layout root instead of per-page. */
+  walletRecharge: { open: boolean };
+  walletBalance: number;
+
   // Actions
   fetchReports: () => Promise<void>;
   addReport: (report: Omit<ScheduledReport, 'id'>) => void;
@@ -35,6 +42,8 @@ interface ReportsStoreState {
   closeDeleteConfirm: () => void;
   openSuccess: (title: string, rtype: string, freq: string) => void;
   closeSuccess: () => void;
+  openWalletRecharge: () => void;
+  closeWalletRecharge: () => void;
 }
 
 export const useReportsStore = create<ReportsStoreState>((set, get) => ({
@@ -52,6 +61,8 @@ export const useReportsStore = create<ReportsStoreState>((set, get) => ({
   samplePreview: null,
   deleteConfirm: null,
   successModal: null,
+  walletRecharge: { open: false },
+  walletBalance: 1741.32,
 
   fetchReports: async () => {
     set({ loading: true });
@@ -63,54 +74,73 @@ export const useReportsStore = create<ReportsStoreState>((set, get) => ({
     }
   },
 
-  addReport: (reportData) => {
-    const newReport: ScheduledReport = {
-      ...reportData,
-      id: Date.now(),
-      isNew: true,
-    };
-    set((state) => ({
-      reports: [newReport, ...state.reports],
-    }));
-    // Remove isNew animation flag after 3 seconds
-    setTimeout(() => {
+  addReport: async (reportData) => {
+    const newReport = await reportsApi.createScheduleReport(reportData);
+    if (newReport) {
+      newReport.isNew = true;
+      set((state) => ({
+        reports: [newReport, ...state.reports],
+      }));
+      // Remove isNew animation flag after 3 seconds
+      setTimeout(() => {
+        set((state) => ({
+          reports: state.reports.map((r) =>
+            r.id === newReport.id ? { ...r, isNew: false } : r
+          ),
+        }));
+      }, 3000);
+    } else {
+      get().showToast('Failed to create report schedule');
+    }
+  },
+
+  updateReport: async (id, reportData) => {
+    const success = await reportsApi.updateScheduleReport(id, reportData);
+    if (success) {
       set((state) => ({
         reports: state.reports.map((r) =>
-          r.id === newReport.id ? { ...r, isNew: false } : r
+          r.id === id ? { ...r, ...reportData } : r
         ),
       }));
-    }, 3000);
+    } else {
+      get().showToast('Failed to update report schedule');
+    }
   },
 
-  updateReport: (id, reportData) => {
-    set((state) => ({
-      reports: state.reports.map((r) =>
-        r.id === id ? { ...r, ...reportData } : r
-      ),
-    }));
+  deleteReport: async (id) => {
+    const success = await reportsApi.deleteScheduleReport(id);
+    if (success) {
+      set((state) => ({
+        reports: state.reports.filter((r) => r.id !== id),
+      }));
+    } else {
+      get().showToast('Failed to delete report schedule');
+    }
   },
 
-  deleteReport: (id) => {
-    set((state) => ({
-      reports: state.reports.filter((r) => r.id !== id),
-    }));
-  },
-
-  toggleReportEnabled: (id) => {
-    set((state) => {
-      const reports = state.reports.map((r) => {
-        if (r.id === id) {
-          const newStatus = !r.enabled;
-          // Trigger toast
-          setTimeout(() => {
-            get().showToast(`${newStatus ? 'Enabled' : 'Disabled'}: ${r.title}`);
-          }, 0);
-          return { ...r, enabled: newStatus };
-        }
-        return r;
+  toggleReportEnabled: async (id) => {
+    const report = get().reports.find(r => r.id === id);
+    if (!report) return;
+    const newStatus = !report.enabled;
+    const success = await reportsApi.updateScheduleReport(id, { ...report, enabled: newStatus });
+    
+    if (success) {
+      set((state) => {
+        const reports = state.reports.map((r) => {
+          if (r.id === id) {
+            // Trigger toast
+            setTimeout(() => {
+              get().showToast(`${newStatus ? 'Enabled' : 'Disabled'}: ${r.title}`);
+            }, 0);
+            return { ...r, enabled: newStatus };
+          }
+          return r;
+        });
+        return { reports };
       });
-      return { reports };
-    });
+    } else {
+      get().showToast('Failed to toggle report status');
+    }
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -157,5 +187,13 @@ export const useReportsStore = create<ReportsStoreState>((set, get) => ({
 
   closeSuccess: () => {
     set({ successModal: null });
+  },
+
+  openWalletRecharge: () => {
+    set({ walletRecharge: { open: true } });
+  },
+
+  closeWalletRecharge: () => {
+    set({ walletRecharge: { open: false } });
   },
 }));

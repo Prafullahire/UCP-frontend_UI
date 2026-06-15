@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import RowActionsMenu from './RowActionsMenu';
+import RowActionsMenu, {
+  CancelIcon,
+  CloneIcon,
+  LabelIcon,
+  PrintIcon,
+  type RowMenuItem,
+} from './RowActionsMenu';
 import { SHIPMENT_STATUS_META } from '../data/shipmentsData';
-import type { Shipment, OrderTabId } from '../types';
+import type { OrderTabId, Shipment, ShipmentStatus } from '../types';
 
 /**
  * Sortable columns supported across every shipment tab. The header row
@@ -11,6 +17,7 @@ import type { Shipment, OrderTabId } from '../types';
 export type ShipmentSortKey =
   | 'id'
   | 'customer'
+  | 'product'
   | 'address'
   | 'payment'
   | 'manifested'
@@ -35,9 +42,11 @@ interface ShipmentsGridProps {
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
   onPrintInvoice: (s: Shipment) => void;
-  onEditOrder: (s: Shipment) => void;
-  onAddTag: (s: Shipment) => void;
+  /** Print shipping label — every shipment tab surfaces this. */
+  onPrintLabel?: (s: Shipment) => void;
   onCloneOrder: (s: Shipment) => void;
+  /** "Cancel Shipment" — exposed on the Ready to Ship + Ready to Pickup
+   *  menus (and dynamically on the All tab for those statuses). */
   onCancelOrder: (s: Shipment) => void;
   onOrderIdClick: (s: Shipment) => void;
   /** Fires on the row-level primary CTA (e.g. "Mark Ready") */
@@ -91,13 +100,19 @@ const COLUMNS_BY_TAB: Record<Exclude<OrderTabId, 'pending'>, ColumnSpec[]> = {
     { key: 'shipping',    label: 'PURCHASE ORDER' },
     { key: 'status',      label: 'STATUS' },
   ],
+  /* RTO column recipe mirrors the Pending tab's sequence
+     (ID → CUSTOMER → PRODUCT → … → PAYMENT → STATUS → ADDRESS)
+     with two RTO-specific slots: RTO INITIATED replaces PACKAGE and
+     SHIPPING DETAILS is pinned to the right of ADDRESS. */
   rto: [
     { key: 'id',          label: 'ORDER DETAILS' },
     { key: 'customer',    label: 'CUSTOMER DETAILS' },
-    { key: 'address',     label: 'ADDRESS DETAILS' },
+    { key: 'product',     label: 'PRODUCT DETAILS' },
     { key: 'manifested',  label: 'RTO INITIATED' },
     { key: 'payment',     label: 'PAYMENT' },
     { key: 'status',      label: 'STATUS' },
+    { key: 'address',     label: 'ADDRESS DETAILS' },
+    { key: 'shipping',    label: 'SHIPPING DETAILS' },
   ],
   all: [
     { key: 'id',          label: 'ORDER DETAILS' },
@@ -128,6 +143,7 @@ function sortShipments(rows: Shipment[], sort: ShipmentSortState | null): Shipme
     switch (sort.key) {
       case 'id':         return a.id.localeCompare(b.id) * dir;
       case 'customer':   return a.customer.name.localeCompare(b.customer.name) * dir;
+      case 'product':    return (a.product?.name ?? '').localeCompare(b.product?.name ?? '') * dir;
       case 'address':    return a.delivery.city.localeCompare(b.delivery.city) * dir;
       case 'payment':    return (a.payment.amount - b.payment.amount) * dir;
       case 'manifested': return (a.manifestedDate ?? '').localeCompare(b.manifestedDate ?? '') * dir;
@@ -197,6 +213,21 @@ const CustomerCell: React.FC<{ s: Shipment }> = ({ s }) => (
     </div>
   </>
 );
+
+/* Mirrors the Pending grid's product cell so the RTO + Pending tabs
+   render product info identically (name / SKU / Qty + HSN). */
+const ProductCell: React.FC<{ s: Shipment }> = ({ s }) => {
+  if (!s.product) return <span className="ord-meta">—</span>;
+  return (
+    <>
+      <div className="ord-prod-name">{s.product.name}</div>
+      <div className="ord-sku">SKU {s.product.sku}</div>
+      <div className="ord-qty">
+        Qty <b>{s.product.qty}</b> &nbsp;&nbsp; HSN {s.product.hsn}
+      </div>
+    </>
+  );
+};
 
 const ManifestedCell: React.FC<{ s: Shipment }> = ({ s }) => (
   <>
@@ -316,8 +347,7 @@ export const ShipmentsGrid: React.FC<ShipmentsGridProps> = ({
   onToggleSelect,
   onToggleSelectAll,
   onPrintInvoice,
-  onEditOrder,
-  onAddTag,
+  onPrintLabel,
   onCloneOrder,
   onCancelOrder,
   onOrderIdClick,
@@ -378,6 +408,7 @@ export const ShipmentsGrid: React.FC<ShipmentsGridProps> = ({
         />
       );
       case 'customer':   return <CustomerCell s={s} />;
+      case 'product':    return <ProductCell s={s} />;
       case 'manifested': return tab === 'rto'
         ? <RtoInitiatedCell s={s} />
         : <ManifestedCell s={s} />;
@@ -513,30 +544,30 @@ export const ShipmentsGrid: React.FC<ShipmentsGridProps> = ({
       {menuFor && (() => {
         const ship = shipments.find((x) => x.id === menuFor.shipmentId);
         if (!ship) return null;
+        const fire = (fn: (s: Shipment) => void) => () => {
+          closeMenu();
+          fn(ship);
+        };
+
+        /* On the catch-all "All" tab we derive the right menu from the
+           row's own status so each lifecycle stage gets the same actions
+           it would have on its dedicated tab — except "Cancel Shipment"
+           is intentionally suppressed on All (and on RTO, which already
+           maps to the cancel-less `rto` category). */
+        const category = tab === 'all' ? menuCategoryFor(ship.status) : tab;
+        const items = buildRowMenuItems(category, {
+          onPrintInvoice: fire(onPrintInvoice),
+          onPrintLabel:   fire((s) => onPrintLabel?.(s)),
+          onCloneOrder:   fire(onCloneOrder),
+          onCancelOrder:  fire(onCancelOrder),
+          includeCancel:  tab !== 'all',
+        });
+
         return (
           <RowActionsMenu
             anchor={menuFor.anchor}
             onClose={closeMenu}
-            onPrintInvoice={() => {
-              closeMenu();
-              onPrintInvoice(ship);
-            }}
-            onEditOrder={() => {
-              closeMenu();
-              onEditOrder(ship);
-            }}
-            onAddTag={() => {
-              closeMenu();
-              onAddTag(ship);
-            }}
-            onCloneOrder={() => {
-              closeMenu();
-              onCloneOrder(ship);
-            }}
-            onCancelOrder={() => {
-              closeMenu();
-              onCancelOrder(ship);
-            }}
+            items={items}
           />
         );
       })()}
@@ -577,5 +608,74 @@ export const ShipmentsGrid: React.FC<ShipmentsGridProps> = ({
     </div>
   );
 };
+
+/* ─────────────────────────────────────────────────────────────────────── *
+ * Row action menu — per-tab composition.
+ *
+ *   • Ready to Ship & Ready to Pickup:
+ *       Print Invoice · Print Label · Clone Order · Cancel Shipment
+ *
+ *   • In Transit / Delivered / RTO:
+ *       Print Invoice · Print Label · Clone Order
+ *
+ *   • All:
+ *       resolves per-row from `shipment.status` and inherits the
+ *       lifecycle-stage's menu above.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/** Category buckets that drive the row menu. Distinct from `OrderTabId`
+ *  because the "all" tab gets routed to one of these per row. */
+type MenuCategory = 'ready-to-ship' | 'ready-to-pickup' | 'in-transit' | 'delivered' | 'rto';
+
+/** Maps a `ShipmentStatus` to the category that owns its row menu. */
+function menuCategoryFor(status: ShipmentStatus): MenuCategory {
+  if (status === 'ready-to-ship') return 'ready-to-ship';
+  if (status === 'agent-assigned' || status === 'awaiting-scan' || status === 'pickup-reattempt') {
+    return 'ready-to-pickup';
+  }
+  if (
+    status === 'picked-up' || status === 'in-transit' || status === 'out-for-delivery' ||
+    status === 'delayed'   || status === 'lost'       || status === 'damage'
+  ) {
+    return 'in-transit';
+  }
+  if (status === 'delivered' || status === 'failed') return 'delivered';
+  /* rto-initiated · rto-in-transit · rto-delivered · rto-completed */
+  return 'rto';
+}
+
+interface RowMenuHandlers {
+  onPrintInvoice: () => void;
+  onPrintLabel:   () => void;
+  onCloneOrder:   () => void;
+  onCancelOrder:  () => void;
+  /** When `false`, the destructive "Cancel Shipment" row is never
+   *  appended — the All tab uses this to drop Cancel even for
+   *  ready-to-ship / ready-to-pickup rows. Defaults to true. */
+  includeCancel?: boolean;
+}
+
+/** Builds the items list for a given category — Ready-to-Ship/Pickup
+ *  appends a destructive "Cancel Shipment" row; downstream stages
+ *  (In Transit / Delivered / RTO) omit it. */
+function buildRowMenuItems(category: MenuCategory, h: RowMenuHandlers): RowMenuItem[] {
+  const items: RowMenuItem[] = [
+    { key: 'print-invoice', icon: PrintIcon, label: 'Print Invoice', onClick: h.onPrintInvoice },
+    { key: 'print-label',   icon: LabelIcon, label: 'Print Label',   onClick: h.onPrintLabel },
+    { key: 'clone-order',   icon: CloneIcon, label: 'Clone Order',   onClick: h.onCloneOrder },
+  ];
+  const includeCancel = h.includeCancel !== false;
+  if (includeCancel && (category === 'ready-to-ship' || category === 'ready-to-pickup')) {
+    items.push({
+      key: 'cancel-shipment',
+      icon: CancelIcon,
+      label: 'Cancel Shipment',
+      onClick: h.onCancelOrder,
+      variant: 'danger',
+      separatorAbove: true,
+    });
+  }
+  return items;
+}
 
 export default ShipmentsGrid;

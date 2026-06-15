@@ -46,8 +46,9 @@ const DELAY_SEGMENTS = [
   { l: '3+ days late',  v: 70,  c: 'var(--c-lost)'   },
 ];
 
-export const OrdersTab: React.FC = () => {
-  const netRev = NET_REVENUE.del - NET_REVENUE.rto - NET_REVENUE.ship - NET_REVENUE.pen;
+export const OrdersTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Last Week' }) => {
+  const m = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+  const netRev = (NET_REVENUE.del - NET_REVENUE.rto - NET_REVENUE.ship - NET_REVENUE.pen) * m;
 
   return (
     <div className="d-fade">
@@ -122,9 +123,9 @@ export const OrdersTab: React.FC = () => {
               height={12}
               segments={[
                 { l: 'Net',  v: netRev,           c: 'var(--c-ontime)'  },
-                { l: 'RTO',  v: NET_REVENUE.rto,  c: 'var(--c-lost)'    },
-                { l: 'Ship', v: NET_REVENUE.ship, c: 'var(--c-transit)' },
-                { l: 'Pen',  v: NET_REVENUE.pen,  c: 'var(--c-cod)'     },
+                { l: 'RTO',  v: NET_REVENUE.rto * m,  c: 'var(--c-lost)'    },
+                { l: 'Ship', v: NET_REVENUE.ship * m, c: 'var(--c-transit)' },
+                { l: 'Pen',  v: NET_REVENUE.pen * m,  c: 'var(--c-cod)'     },
               ]}
             />
           </div>
@@ -137,7 +138,7 @@ export const OrdersTab: React.FC = () => {
                 <span className="rev-dot" style={{ background: r.c }} />
                 <span className="rev-lbl">{r.l}</span>
                 <span className={`rev-val ${r.neg ? 'rev-neg' : ''}`}>
-                  {r.neg ? '− ' : '+ '}₹{(r.v / 1000).toFixed(1)}K
+                  {r.neg ? '− ' : '+ '}₹{((r.v * m) / 1000).toFixed(1)}K
                 </span>
               </div>
             ))}
@@ -149,7 +150,7 @@ export const OrdersTab: React.FC = () => {
             </div>
           </div>
           <Legend items={REV_LINES.map((r) => ({
-            l: r.l, v: `₹${(r.v / 1000).toFixed(0)}K`, c: r.c,
+            l: r.l, v: `₹${((r.v * m) / 1000).toFixed(0)}K`, c: r.c,
           }))} />
         </Card>
 
@@ -158,14 +159,14 @@ export const OrdersTab: React.FC = () => {
             <div style={{ flex: 1, paddingRight: 16 }}>
               <div className="val-label">Total Orders</div>
               <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span className="val-big">1,380</span>
+                <span className="val-big">{(1380 * m).toLocaleString()}</span>
                 <span className="stat-delta up">↑ 12%</span>
               </div>
             </div>
             <div style={{ flex: 1, borderLeft: '1px solid var(--border)', paddingLeft: 16 }}>
               <div className="val-label">GMV</div>
               <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span className="val-big">₹11.7L</span>
+                <span className="val-big">₹{(11.7 * m).toFixed(1)}L</span>
                 <span className="stat-delta up">↑ 8%</span>
               </div>
             </div>
@@ -173,11 +174,11 @@ export const OrdersTab: React.FC = () => {
           <div style={{ display: 'flex', gap: 0, marginBottom: 16 }}>
             <div style={{ flex: 1, paddingRight: 16 }}>
               <div className="val-label">Today</div>
-              <div className="val-mid">47</div>
+              <div className="val-mid">{Math.round(47 * m)}</div>
             </div>
             <div style={{ flex: 1, borderLeft: '1px solid var(--border)', paddingLeft: 16 }}>
               <div className="val-label">Yesterday</div>
-              <div className="val-mid">52</div>
+              <div className="val-mid">{Math.round(52 * m)}</div>
             </div>
           </div>
 
@@ -217,22 +218,22 @@ export const OrdersTab: React.FC = () => {
           </div>
 
           <div className="val-label" style={{ marginBottom: 6 }}>
-            Pipeline ({SHIPMENTS.total.toLocaleString()} shipments)
+            Pipeline ({(SHIPMENTS.total * m).toLocaleString()} shipments)
           </div>
-          <StackedBar height={40} segments={SHIPMENT_SEGMENTS} />
+          <StackedBar height={40} segments={SHIPMENT_SEGMENTS.map(s => ({...s, v: s.v * m}))} />
 
           <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
             <div className="stat-tile good">
               <div className="val-label">Delivered</div>
-              <div className="val-mid" style={{ color: 'var(--green)' }}>{SHIPMENTS.delivered}</div>
+              <div className="val-mid" style={{ color: 'var(--green)' }}>{SHIPMENTS.delivered * m}</div>
             </div>
             <div className="stat-tile">
               <div className="val-label">In Transit</div>
-              <div className="val-mid">{SHIPMENTS.transit}</div>
+              <div className="val-mid">{SHIPMENTS.transit * m}</div>
             </div>
             <div className="stat-tile bad">
               <div className="val-label">Failed</div>
-              <div className="val-mid" style={{ color: 'var(--red)' }}>{SHIPMENTS.failed}</div>
+              <div className="val-mid" style={{ color: 'var(--red)' }}>{SHIPMENTS.failed * m}</div>
             </div>
           </div>
 
@@ -241,9 +242,9 @@ export const OrdersTab: React.FC = () => {
           </Insight>
 
           <Legend items={[
-            { l: 'Delivered', v: '856', c: 'var(--c-delivered)' },
-            { l: 'Transit',   v: '318', c: 'var(--c-transit)'   },
-            { l: 'Failed',    v: '146', c: 'var(--c-lost)'      },
+            { l: 'Delivered', v: `${856 * m}`, c: 'var(--c-delivered)' },
+            { l: 'Transit',   v: `${318 * m}`, c: 'var(--c-transit)'   },
+            { l: 'Failed',    v: `${146 * m}`, c: 'var(--c-lost)'      },
           ]} />
         </Card>
 
@@ -259,27 +260,27 @@ export const OrdersTab: React.FC = () => {
             <span className="stat-delta down">↓ 2%</span>
           </div>
 
-          <div className="val-label" style={{ marginBottom: 6 }}>Delay Severity (188 late)</div>
-          <StackedBar height={40} segments={DELAY_SEGMENTS} />
+          <div className="val-label" style={{ marginBottom: 6 }}>Delay Severity ({188 * m} late)</div>
+          <StackedBar height={40} segments={DELAY_SEGMENTS.map(s => ({...s, v: s.v * m}))} />
 
           <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
             <div className="stat-tile good">
               <div className="val-label">On-time</div>
-              <div className="val-mid" style={{ color: 'var(--green)' }}>668</div>
+              <div className="val-mid" style={{ color: 'var(--green)' }}>{668 * m}</div>
             </div>
             <div className="stat-tile warn">
               <div className="val-label">Mild</div>
-              <div className="val-mid" style={{ color: 'var(--amber)' }}>118</div>
+              <div className="val-mid" style={{ color: 'var(--amber)' }}>{118 * m}</div>
             </div>
             <div className="stat-tile bad">
               <div className="val-label">Critical</div>
-              <div className="val-mid" style={{ color: 'var(--red)' }}>70</div>
+              <div className="val-mid" style={{ color: 'var(--red)' }}>{70 * m}</div>
             </div>
           </div>
 
           <Insight>
             <b>East zone via Xpressbees: 38% late</b> vs 12% avg.{' '}
-            <span className="bad">70 deliveries 3+ days late</span> = NDR candidates.
+            <span className="bad">{70 * m} deliveries 3+ days late</span> = NDR candidates.
           </Insight>
 
           <Legend items={[
@@ -297,14 +298,14 @@ export const OrdersTab: React.FC = () => {
             <RankedRow
               key={c.n}
               name={c.n}
-              value={c.r}
-              max={CATEGORIES[0].r}
+              value={c.r * m}
+              max={CATEGORIES[0].r * m}
               color={c.c}
               topBadge={i === 0 ? <Badge tone="green">Top</Badge> : undefined}
               meta={
                 <>
-                  <span className="m-dim">{c.o} ord</span>
-                  <span className="m-val">₹{(c.r / 1000).toFixed(0)}K</span>
+                  <span className="m-dim">{c.o * m} ord</span>
+                  <span className="m-val">₹{((c.r * m) / 1000).toFixed(0)}K</span>
                 </>
               }
             />
@@ -321,13 +322,13 @@ export const OrdersTab: React.FC = () => {
             <RankedRow
               key={p.n}
               name={p.n}
-              value={p.r}
-              max={PRODUCTS[0].r}
+              value={p.r * m}
+              max={PRODUCTS[0].r * m}
               color="var(--c-insta)"
               meta={
                 <>
-                  <span className="m-dim">{p.o} sold</span>
-                  <span className="m-val">₹{(p.r / 1000).toFixed(0)}K</span>
+                  <span className="m-dim">{p.o * m} sold</span>
+                  <span className="m-val">₹{((p.r * m) / 1000).toFixed(0)}K</span>
                 </>
               }
             />
@@ -348,8 +349,8 @@ export const OrdersTab: React.FC = () => {
               color="var(--orange)"
               meta={
                 <>
-                  <span className="m-dim">{l.o} ord</span>
-                  <span className="m-val">₹{l.r.toLocaleString()}</span>
+                  <span className="m-dim">{l.o * m} ord</span>
+                  <span className="m-val">₹{(l.r * m).toLocaleString()}</span>
                   <span className="m-val" style={{ color: 'var(--ink3)', minWidth: 42 }}>{l.p}%</span>
                 </>
               }
@@ -363,13 +364,13 @@ export const OrdersTab: React.FC = () => {
             <RankedRow
               key={c.n}
               name={c.n}
-              value={c.r}
-              max={CUSTOMERS[0].r}
+              value={c.r * m}
+              max={CUSTOMERS[0].r * m}
               color="var(--c-amz)"
               meta={
                 <>
-                  <span className="m-dim">{c.o} ord</span>
-                  <span className="m-val">₹{(c.r / 1000).toFixed(1)}K</span>
+                  <span className="m-dim">{c.o * m} ord</span>
+                  <span className="m-val">₹{((c.r * m) / 1000).toFixed(1)}K</span>
                 </>
               }
             />

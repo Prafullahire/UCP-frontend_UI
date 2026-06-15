@@ -49,7 +49,122 @@ export const SamplePreviewModal: React.FC = () => {
   const handleDownload = async () => {
     showToast(`⬇ Preparing "Sample Report"…`);
     try {
-      await reportsApi.downloadReport("Sample Report");
+      const key = currentTab.key;
+      let headers: string[] = [];
+      let rows: string[][] = [];
+
+      if (key === 'ao') {
+        headers = ['AWB Number', 'Order Date', 'Amount', 'Payment', 'Name', 'Address', 'Contact', 'Weight', 'Status', 'Shipping Chrg.', 'Discount', 'Product'];
+        rows = [
+          ['XB666937844', '19/04/2026', 'Rs.1,600', 'PREPAID', 'Amit Verma', 'Pune 411001 to Kolkata 700001', '9188456388', '1.0 kg', 'Pickup Scheduled', 'Rs.91', 'Rs.408', 'Whey Protein Combo'],
+          ['XB999679763', '23/04/2026', 'Rs.4,606', 'COD', 'Karan Patel', 'Delhi 110001 to Hyderabad 500001', '9648036479', '0.5 kg', 'Pickup Not Scheduled', 'Rs.106', 'Rs.461', 'Whey Protein Combo'],
+          ['XB931924341', '15/04/2026', 'Rs.2,353', 'PREPAID', 'Amit Verma', 'Bangalore 560001 to Hyderabad 500001', '9371423823', '4.0 kg', 'In-Transit', 'Rs.53', 'Rs.224', 'Protein Powder 1kg'],
+          ['XB637899121', '16/04/2026', 'Rs.3,655', 'COD', 'Rahul Sharma', 'Bangalore 560001 to Chennai 600001', '9615756698', '2.0 kg', 'Delivered', 'Rs.55', 'Rs.35', 'Protein Powder 1kg'],
+          ['XB185659046', '22/04/2026', 'Rs.3,454', 'COD', 'Sneha Joshi', 'Bangalore 560001 to Kolkata 700001', '9358221973', '4.0 kg', 'RTO', 'Rs.171', 'Rs.396', 'Protein Powder 1kg'],
+          ['XB891115231', '10/04/2026', 'Rs.4,798', 'COD', 'Sneha Joshi', 'Bangalore 560001 to Chennai 600001', '9843130364', '5.0 kg', 'RTO', 'Rs.120', 'Rs.24', 'Mass Gainer 2kg'],
+          ['XB550850041', '10/04/2026', 'Rs.2,308', 'PREPAID', 'Karan Patel', 'Mumbai 400001 to Hyderabad 500001', '9667234179', '3.0 kg', 'In-Transit', 'Rs.163', 'Rs.135', 'Vitamin Gummies'],
+        ];
+      } else if (key === 'it') {
+        headers = ['AWB No.', 'Order ID', 'Address', 'Status', 'EDD', 'Days In-Transit'];
+        rows = [
+          ['XB293321676', 'ORD94874', 'Bangalore 560001 to Kolkata 700001', 'Ontime', '26/04/2026', '7 days'],
+          ['XB372161168', 'ORD39251', 'Bangalore 560001 to Ahmedabad 380001', 'Delayed', '04/04/2026', '7 days'],
+          ['XB389212598', 'ORD18382', 'Delhi 110001 to Ahmedabad 380001', 'Delayed', '25/04/2026', '6 days'],
+          ['XB420063942', 'ORD52017', 'Pune 411001 to Ahmedabad 380001', 'Ontime', '07/04/2026', '3 days'],
+          ['XB940076390', 'ORD38912', 'Bangalore 560001 to Ahmedabad 380001', 'Ontime', '22/04/2026', '7 days'],
+          ['XB827822276', 'ORD16674', 'Delhi 110001 to Hyderabad 500001', 'Ontime', '01/05/2026', '2 days'],
+          ['XB406803674', 'ORD32487', 'Delhi 110001 to Chennai 600001', 'Delayed', '08/04/2026', '6 days'],
+          ['XB785898879', 'ORD25229', 'Delhi 110001 to Hyderabad 500001', 'Delayed', '19/04/2026', '7 days'],
+        ];
+      } else if (key === 'ndr') {
+        headers = ['Order / AWB', 'Delivery Address', 'Shipment Type', 'Attempts', 'NDR Reason', 'Payment', 'Last Updated', 'Last Action By', 'Action Priority'];
+        rows = [
+          ['ORD59723 / XB199329026', 'Mumbai 400001', 'XPRESSBEES Air', '5', 'Future Delivery Requested', 'Rs.4,651 - PREPAID', '10/04/2026', 'Seller', 'No-Action Required'],
+          ['ORD70093 / XB414479272', 'Delhi 110001', 'XPRESSBEES Air', '3', 'Address Incomplete', 'Rs.2,004 - COD', '19/04/2026', 'XpressBees', 'Critical Action Required'],
+          ['ORD58933 / XB917336369', 'Hyderabad 500001', 'XPRESSBEES Air', '3', 'Customer Refused', 'Rs.2,141 - COD', '26/04/2026', 'XpressBees', 'Action Required'],
+          ['ORD86903 / XB150226877', 'Pune 411001', 'XPRESSBEES Surface', '3', 'Customer Refused', 'Rs.2,773 - COD', '22/04/2026', 'Seller', 'No-Action Required'],
+          ['ORD25891 / XB891711905', 'Delhi 110001', 'XPRESSBEES Surface', '1', 'Incorrect Pincode', 'Rs.2,641 - PREPAID', '16/04/2026', 'XpressBees', 'Critical Action Required'],
+          ['ORD69063 / XB845379411', 'Pune 411001', 'XPRESSBEES Air', '5', 'Customer Not Available', 'Rs.3,182 - PREPAID', '13/04/2026', 'Seller', 'Action Required'],
+          ['ORD22039 / XB502719388', 'Mumbai 400001', 'XPRESSBEES Air', '4', 'Customer Refused', 'Rs.3,147 - COD', '30/04/2026', 'XpressBees', 'No-Action Required'],
+        ];
+      } else if (key === 'pw') {
+        headers = ['Product Name', 'Product SKU', 'Total Order Qty', 'Booked', 'Pending Pickup', 'In Transit', 'Delivered', 'RTO'];
+        rows = [
+          ['Whey Protein Combo', 'SKU-WPC-001', '42', '8', '6', '12', '14', '2'],
+          ['Protein Powder 1kg', 'SKU-PP1-002', '38', '5', '4', '10', '17', '2'],
+          ['Mass Gainer 2kg', 'SKU-MG2-003', '29', '3', '5', '8', '11', '2'],
+          ['Yoga Mat', 'SKU-YM-004', '24', '2', '3', '6', '11', '2'],
+          ['Vitamin Gummies', 'SKU-VG-005', '18', '1', '2', '5', '8', '2'],
+          ['TOTAL', '-', '151', '19', '20', '41', '61', '10']
+        ];
+      } else if (key === 'perf_overall') {
+        headers = ['Zone', 'Delivered', 'LOST', 'RTO', 'Shipped', 'STD', 'Grand Total', 'Delivered %', 'RTO %'];
+        rows = [
+          ['Rest Of India', '2,150', '10', '610', '95', '5', '2,870', '75%', '21%'],
+          ['Regional', '920', '5', '220', '45', '1', '1,191', '77%', '18%'],
+          ['Within City', '225', '1', '25', '5', '0', '256', '88%', '10%'],
+          ['TOTAL', '3,825', '18', '925', '163', '6', '4,937', '77%', '19%']
+        ];
+      } else if (key === 'perf_cod') {
+        headers = ['Payment Mode', 'Delivered', 'LOST', 'RTO', 'Grand Total', 'Delivered %', 'RTO %'];
+        rows = [
+          ['COD', '2,100', '18', '860', '3,098', '68%', '28%'],
+          ['PREPAID', '1,725', '2', '65', '1,902', '91%', '3%'],
+          ['TOTAL', '3,825', '20', '925', '5,000', '76.5%', '18.5%']
+        ];
+      } else if (key === 'perf_sla') {
+        headers = ['Zone', 'Ontime', 'Beyond SLA', 'RTO/UD', 'Grand Total', 'Ontime %', 'Beyond SLA %'];
+        rows = [
+          ['Rest Of India', '1,820', '410', '640', '2,870', '63%', '14%'],
+          ['Regional', '780', '160', '251', '1,191', '65%', '13%'],
+          ['TOTAL', '3,070', '630', '981', '4,681', '65%', '13%']
+        ];
+      } else if (key === 'perf_attempt') {
+        headers = ['Zone', '1st Attempt', '2nd Attempt', '3rd Attempt', '>3 Attempts', 'RTO/UD', 'Grand Total'];
+        rows = [
+          ['Rest Of India', '1,700', '320', '95', '25', '730', '2,870'],
+          ['Regional', '690', '135', '42', '9', '315', '1,191'],
+          ['TOTAL', '2,810', '510', '149', '36', '1,176', '4,681']
+        ];
+      } else if (key === 'perf_state') {
+        headers = ['State', 'Delivered', 'LOST', 'RTO', 'Grand Total', 'Delivered %', 'S2A', 'S2D', 'FAD'];
+        rows = [
+          ['MAHARASHTRA', '820', '2', '180', '1,022', '80%', '95%', '74%', '72%'],
+          ['KARNATAKA', '520', '3', '130', '668', '78%', '94%', '72%', '70%'],
+          ['DELHI', '465', '1', '95', '571', '81%', '97%', '75%', '74%'],
+          ['TOTAL', '2,195', '10', '555', '2,817', '78%', '94%', '72%', '69%']
+        ];
+      } else if (key === 'perf_rto') {
+        headers = ['NDR Reason', '0', '1', '2', '3', '4', '>5', 'Grand Total', 'Contribution %'];
+        rows = [
+          ['OTP Verified', '40', '160', '420', '140', '30', '5', '795', '35%'],
+          ['Customer Not Available', '20', '110', '310', '90', '15', '3', '548', '24%'],
+          ['Customer Refused', '5', '25', '110', '40', '10', '1', '191', '8%'],
+          ['TOTAL', '68', '313', '915', '294', '59', '9', '1,658', '72%']
+        ];
+      }
+
+      if (headers.length === 0) {
+        showToast('❌ No sample data found');
+        return;
+      }
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const csvFilename = sampleFilename.replace('.xlsx', '.csv');
+      link.setAttribute('download', csvFilename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
       showToast(`✓ "Sample Report" downloaded`);
     } catch {
       showToast('❌ Download failed');

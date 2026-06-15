@@ -76,68 +76,67 @@
 .tb-r {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-left: auto;
 }
 
-/* ── Wallet pill: icon + amount only ── */
+/* ──────────────────────────────────────────────────────────────
+   Wallet pill — flat (no border) clickable trigger. The whole
+   pill (icon + amount) is the recharge entry-point now; no
+   separate orange "+" button. The hover wash matches the other
+   flat controls (Quick Actions, Support) so the three utility
+   buttons read as one strip.
+   ────────────────────────────────────────────────────────────── */
 .tb-wallet {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   height: 34px;
-  padding: 0 14px;
+  padding: 0 8px;
   cursor: pointer;
-  border: 1px solid #E4E2DC;
-  border-radius: 8px;
-  background: #fff;
+  border: 0;
+  background: transparent;
   font-family: var(--font);
   white-space: nowrap;
-  transition: background .12s, border-color .12s;
+  border-radius: 6px;
+  transition: background .12s;
 }
-.tb-wallet:hover { background: #F9F8F5; border-color: #D6D4CC; }
+.tb-wallet:hover { background: #F9F8F5; }
+.tb-wallet:focus-visible {
+  outline: none;
+  background: #F9F8F5;
+  box-shadow: 0 0 0 3px var(--ol, #FEF0E8);
+}
 .tb-wallet-ico {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
+  color: #6B6960;
 }
-.tb-wallet-ico svg { width: 16px; height: 16px; }
+.tb-wallet-ico svg { width: 20px; height: 16px; }
 .tb-wallet-amount {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #1A190F;
-  font-family: var(--mono);
-  line-height: 1;
-}
-
-/* ── Need Help? pill (label on left, help icon on right) ── */
-.tb-help {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 14px;
-  cursor: pointer;
-  border: 1px solid #E4E2DC;
-  border-radius: 8px;
-  background: #fff;
-  font-family: var(--font);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: #1A190F;
-  white-space: nowrap;
-  transition: background .12s, border-color .12s;
+  font-family: var(--font);
+  line-height: 1;
+  letter-spacing: .1px;
 }
-.tb-help:hover { background: #F9F8F5; border-color: #D6D4CC; }
-.tb-help-lbl { line-height: 1; }
-.tb-help-ico {
-  display: inline-flex;
-  align-items: center;
+
+/* Hairline vertical divider — used between Wallet/QA and QA/Support */
+.tb-divider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: #E4E2DC;
   flex-shrink: 0;
 }
-.tb-help-ico svg { width: 16px; height: 16px; }
 
-/* ── Quick Actions: outline pill button with dropdown ── */
+/* ──────────────────────────────────────────────────────────────
+   Quick Actions — flat trigger (no border) with leading lightning
+   glyph. Hover swaps to the same neutral hover wash used by the
+   wallet, keeping the two controls visually paired.
+   ────────────────────────────────────────────────────────────── */
 .tb-qa-wrap {
   position: relative;
   display: inline-flex;
@@ -147,27 +146,65 @@
   align-items: center;
   gap: 8px;
   height: 34px;
-  padding: 0 14px;
+  padding: 0 6px;
   cursor: pointer;
-  border: 1px solid #E4E2DC;
-  border-radius: 8px;
-  background: #fff;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   font-family: var(--font);
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: #1A190F;
   white-space: nowrap;
-  transition: background .12s, border-color .12s;
+  transition: background .12s;
 }
 .tb-qa:hover,
-.tb-qa.on { background: #F9F8F5; border-color: #D6D4CC; }
-.tb-qa-lbl { line-height: 1; }
-.tb-qa-chev {
-  color: #6B6960;
-  transition: transform .15s ease;
+.tb-qa.on { background: #F9F8F5; }
+.tb-qa-ico {
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  color: #6B6960;
 }
-.tb-qa.on .tb-qa-chev { transform: rotate(180deg); }
+.tb-qa-ico svg { width: 18px; height: 18px; }
+.tb-qa-lbl { line-height: 1; }
+
+/* ──────────────────────────────────────────────────────────────
+   Support — flat link button, visually paired with the Wallet
+   pill and Quick Actions trigger. Icon left, label right.
+   ────────────────────────────────────────────────────────────── */
+.tb-support {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 6px;
+  cursor: pointer;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  color: #1A190F;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background .12s;
+}
+.tb-support:hover { background: #F9F8F5; }
+.tb-support:focus-visible {
+  outline: none;
+  background: #F9F8F5;
+  box-shadow: 0 0 0 3px var(--ol, #FEF0E8);
+}
+.tb-support-ico {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: #6B6960;
+}
+.tb-support-ico svg { width: 18px; height: 18px; }
+.tb-support-lbl { line-height: 1; }
 
 /* Dropdown popover — visual language borrowed from `.date-dd` so the
    menu surface feels native to the design system. */
@@ -296,28 +333,31 @@
    Responsive Topbar
    ──────────────────────────────────────────────────────────────── */
 
-/* Tablet (≤899px): drop the "Need Help?" label to save horizontal room
-   (the icon-only button still triggers the help action) */
+/* Tablet (≤899px): drop the Quick Actions + Support labels to save
+   horizontal room — the icons still carry both actions. */
 @media (max-width: 899px) {
-  .tb-help-lbl { display: none; }
-  .tb-help { padding: 0 10px; }
-  .tb-qa-lbl { display: none; }
-  .tb-qa { padding: 0 10px; }
+  .tb-qa-lbl,
+  .tb-support-lbl { display: none; }
+  .tb-qa,
+  .tb-support { padding: 0 6px; }
 }
 
-/* Mobile (≤639px): show hamburger, hide pills */
+/* Mobile (≤639px): show hamburger, drop the wallet pill + its divider. */
 @media (max-width: 639px) {
   .tb-burger { display: inline-flex; }
   .tb-wallet { display: none; }
-  .tb-help { display: none; }
+  .tb-r .tb-divider:first-of-type { display: none; }
   .tb-srch { max-width: none; }
   /* Anchor the dropdown to the right edge with a small inset */
   .tb-qa-dd { right: -4px; }
 }
 
-/* Very narrow (≤419px): drop Quick Actions, search becomes the focus */
+/* Very narrow (≤419px): drop Quick Actions + Support, search becomes
+   the focus. Wallet stays hidden from the 639px rule above. */
 @media (max-width: 419px) {
-  .tb-qa-wrap { display: none; }
+  .tb-qa-wrap,
+  .tb-support,
+  .tb-divider { display: none; }
 }
 
 /* ──────────────────────────────────────────────────────────────

@@ -20,6 +20,20 @@ export const DATE_RANGE_OPTIONS: FilterOption[] = [
   { id: 'custom',      label: 'Custom Range' },
 ];
 
+/**
+ * Period-relative range used by the In-Transit "EDD" (Estimated Delivery
+ * Date) chip. Distinct from `DATE_RANGE_OPTIONS` because EDD framing
+ * needs week/month buckets instead of the raw N-day windows.
+ */
+export const EDD_RANGE_OPTIONS: FilterOption[] = [
+  { id: 'yesterday',  label: 'Yesterday' },
+  { id: 'this-week',  label: 'This Week' },
+  { id: 'last-week',  label: 'Last Week' },
+  { id: 'this-month', label: 'This Month' },
+  { id: 'last-month', label: 'Last Month' },
+  { id: 'last90',     label: 'Last 90 Days' },
+];
+
 export const PICKUP_LOCATIONS: FilterOption[] = [
   { id: 'mumbai-wh-a',   label: 'Mumbai Warehouse A' },
   { id: 'pune-wh-b',     label: 'Pune Warehouse B' },
@@ -31,6 +45,7 @@ export const PICKUP_LOCATIONS: FilterOption[] = [
 export const PAYMENT_MODES: FilterOption[] = [
   { id: 'cod',     label: 'COD' },
   { id: 'prepaid', label: 'Prepaid' },
+  { id: 'pickup',  label: 'Pickup' },
 ];
 
 export const CHANNELS: FilterOption[] = [

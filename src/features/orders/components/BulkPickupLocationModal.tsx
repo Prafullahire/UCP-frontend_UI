@@ -45,7 +45,40 @@ export const BulkPickupLocationModal: React.FC<BulkPickupLocationModalProps> = (
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const options: SavedAddressOption[] = SAVED_PICKUPS.map((p) => ({
+  const [pickups, setPickups] = useState<SavedPickup[]>(SAVED_PICKUPS);
+
+  useEffect(() => {
+    import('../../../services/warehouseApi').then(({ warehouseApi }) => {
+      warehouseApi.getWarehouses().then((whList: any[]) => {
+        if (whList && whList.length > 0) {
+          const mapped: SavedPickup[] = whList.map(wh => ({
+            id: String(wh.id || wh.warehouse_id),
+            name: wh.name || wh.warehouse_name || '',
+            tag: 'Warehouse',
+            address: wh.address_1 || wh.address || '',
+            city: wh.city || '',
+            state: wh.state || '',
+            pincode: wh.zip || wh.pincode || '',
+            country: 'India',
+            contactPhone: wh.phone || '',
+            contactPersonName: wh.contact_name || '',
+            email: wh.email || '',
+            supportPhone: wh.phone || '',
+            isVerified: true,
+            isPrimary: false,
+            hideWarehouseAddress: false,
+            hideWarehousePhone: false,
+            hideCustomerPhone: false,
+            hideProductDetails: false,
+            returnSameAsPickup: true,
+          }));
+          setPickups(mapped);
+        }
+      });
+    });
+  }, []);
+
+  const options: SavedAddressOption[] = pickups.map((p) => ({
     id: p.id,
     name: p.name,
     address: p.address,
@@ -57,7 +90,7 @@ export const BulkPickupLocationModal: React.FC<BulkPickupLocationModalProps> = (
 
   const handleConfirm = () => {
     if (!pickupId) return;
-    const pickup = SAVED_PICKUPS.find((p) => p.id === pickupId);
+    const pickup = pickups.find((p) => p.id === pickupId);
     if (pickup) onConfirm(pickup);
   };
 

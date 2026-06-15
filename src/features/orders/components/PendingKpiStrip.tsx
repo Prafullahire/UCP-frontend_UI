@@ -1,4 +1,5 @@
 import React from 'react';
+import KpiScrollShell from './KpiScrollShell';
 import type { PendingKpis } from '../data/ordersData';
 
 /**
@@ -111,7 +112,7 @@ export const PendingKpiStrip: React.FC<PendingKpiStripProps> = ({
   ];
 
   return (
-    <div className="ord-kc-row" role="group" aria-label="Pending orders summary">
+    <KpiScrollShell cardCount={cards.length} ariaLabel="Pending orders summary">
       {cards.map((c) => {
         /* The "all" card represents the default unfiltered state, so we
            never paint it with the active ring — its `on` indicator
@@ -140,7 +141,7 @@ export const PendingKpiStrip: React.FC<PendingKpiStripProps> = ({
           </button>
         );
       })}
-    </div>
+    </KpiScrollShell>
   );
 };
 

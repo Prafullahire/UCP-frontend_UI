@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Wallet Recharge Popup · XpressBees</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ── XB Design Tokens (required) ── */
+:root{
+  --surface:#FFF;--s2:#F8F7F3;--s3:#EEECEA;
+  --border:#E2E0D8;--border2:#C5C3BB;
+  --ink:#1A190F;--ink2:#5C5B52;--ink3:#9B998F;
+  --orange:#E8520A;--ol:#FEF0E8;--om:#F5C09A;
+  --green:#1A6B3A;--gl:#E7F5ED;--gm:#8DD4A9;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);font-size:13px;background:#F4F3EF;display:flex;align-items:center;justify-content:center;min-height:100vh;gap:16px;flex-direction:column}
+
+/* ── TRIGGER BUTTON (demo only) ── */
+.demo-trigger{padding:0 20px;height:38px;border-radius:8px;background:var(--orange);color:#fff;border:none;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.demo-trigger:hover{opacity:.88}
+
+/* ════════════════════════════════════════
+   WALLET RECHARGE POPUP — Full Component
+   Source: mod-wallet.html (38KB, JS valid)
+   Component ID: moRecharge
+════════════════════════════════════════ */
+
+/* Overlay */
+.mo-ov{
+  position:fixed;inset:0;
+  background:rgba(10,10,5,.55);
+  z-index:700;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:20px;
+}
+.mo-ov.sh{display:flex}
+
+/* Modal card */
+.mo{
+  background:var(--surface);
+  border-radius:16px;
+  width:100%;max-width:440px;
+  overflow:hidden;
+  animation:mop .22s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes mop{
+  from{transform:translateY(12px) scale(.97);opacity:0}
+  to{transform:translateY(0) scale(1);opacity:1}
+}
+
+/* Header */
+.mo-hdr{
+  padding:22px 24px 18px;
+  display:flex;justify-content:space-between;align-items:flex-start;
+}
+.mo-title{font-size:18px;font-weight:700;letter-spacing:-.3px}
+.mo-bal{
+  font-family:var(--mono);font-size:16px;font-weight:700;
+  color:var(--green);display:flex;align-items:center;gap:4px;
+}
+.mo-x{
+  width:32px;height:32px;border-radius:9px;
+  border:1px solid var(--border);background:var(--s2);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:16px;color:var(--ink2);
+  flex-shrink:0;transition:all .12s;
+}
+.mo-x:hover{background:var(--s3)}
+
+/* Body */
+.mo-body{padding:0 24px 20px}
+
+/* Info banner */
+.mo-info{
+  font-size:12px;color:var(--green);
+  background:var(--gl);border:1px solid var(--gm);
+  border-radius:8px;padding:8px 14px;
+  margin-bottom:18px;font-weight:500;
+}
+
+/* Amount display */
+.mo-amt{text-align:center;margin-bottom:16px}
+.mo-amt-cur{font-size:11px;color:var(--ink3);margin-bottom:4px}
+.mo-amt-val{
+  font-family:var(--mono);font-size:36px;font-weight:700;
+  color:var(--ink);letter-spacing:-1px;
+}
+.mo-amt-line{
+  width:80px;height:2px;border-radius:1px;
+  background:var(--border);margin:8px auto 0;
+  border-top:2px dashed var(--border2);
+}
+
+/* Preset amount pills */
+.mo-presets{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.mo-pre{
+  padding:6px 18px;border-radius:20px;
+  border:1.5px solid var(--border);background:var(--surface);
+  font-size:13px;font-weight:600;color:var(--ink);
+  cursor:pointer;font-family:var(--font);transition:all .15s;
+}
+.mo-pre:hover{border-color:var(--orange);color:var(--orange)}
+.mo-pre.on{border-color:var(--orange);background:var(--ol);color:var(--orange)}
+
+/* Section title */
+.mo-sec{margin-bottom:16px}
+.mo-sec-t{font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:8px}
+
+/* Coupon row */
+.mo-coupon{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;
+  border:1.5px solid var(--gm);background:var(--gl);
+  border-radius:8px;margin-bottom:16px;
+}
+.mo-coupon-l{font-size:12px;font-weight:600;color:var(--ink)}
+.mo-coupon-r{font-size:12px;font-weight:700;color:var(--orange);cursor:pointer}
+
+/* Bill summary */
+.mo-summary{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:14px 16px;margin-bottom:20px;
+}
+.mo-sum-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mo-sum-hdr span{font-size:12px;font-weight:600;color:var(--ink)}
+.mo-sum-hdr a{font-size:11px;font-weight:600;color:var(--ink3);cursor:pointer;text-decoration:none}
+.mo-sum-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;color:var(--ink2)}
+.mo-sum-row.total{
+  border-top:1px solid var(--border);padding-top:10px;
+  margin-top:4px;font-weight:700;color:var(--ink);font-size:13px;
+}
+.mo-sum-row .mono{font-family:var(--mono);font-weight:700}
+
+/* Pay button */
+.mo-pay{
+  width:100%;height:44px;border-radius:10px;
+  border:none;background:var(--orange);color:#fff;
+  font-size:14px;font-weight:700;cursor:pointer;
+  font-family:var(--font);transition:opacity .15s;letter-spacing:-.2px;
+}
+.mo-pay:hover{opacity:.88}
+</style>
+</head>
+<body>
+
+<!-- Demo trigger -->
+<button class="demo-trigger" onclick="openRecharge()">Recharge Wallet</button>
+<p style="font-size:11px;color:#9B998F">Click to open the popup · Click backdrop or ✕ to close</p>
+
+<!-- ════════════════════════════════════════
+     WALLET RECHARGE POPUP
+     Paste this block into any XB module page
+════════════════════════════════════════ -->
+<div class="mo-ov" id="moRecharge" onclick="if(event.target===this)closeRecharge()">
+  <div class="mo">
+
+    <div class="mo-hdr">
+      <div>
+        <div class="mo-title">Recharge Your Wallet</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="mo-bal">₹551.98</div>
+        <div class="mo-x" onclick="closeRecharge()">✕</div>
+      </div>
+    </div>
+
+    <div class="mo-body">
+
+      <div class="mo-info">
+        Minimum balance required to ship is now <s>₹500</s> ₹200
+      </div>
+
+      <div class="mo-amt">
+        <div class="mo-amt-cur">₹</div>
+        <div class="mo-amt-val" id="moAmtVal">200</div>
+        <div class="mo-amt-line"></div>
+      </div>
+
+      <div class="mo-presets">
+        <div class="mo-pre" onclick="setAmt(500,this)">₹500</div>
+        <div class="mo-pre" onclick="setAmt(1000,this)">₹1000</div>
+        <div class="mo-pre" onclick="setAmt(2000,this)">₹2000</div>
+        <div class="mo-pre" onclick="setAmt(5000,this)">₹5000</div>
+      </div>
+
+      <div class="mo-sec">
+        <div class="mo-sec-t">Offers &amp; Bill Summary</div>
+      </div>
+
+      <div class="mo-coupon">
+        <div class="mo-coupon-l">Have Coupon Code?</div>
+        <div class="mo-coupon-r">Add Coupon</div>
+      </div>
+
+      <div class="mo-summary">
+        <div class="mo-sum-hdr">
+          <span>Amount to be credited: <b id="moCredit">₹200</b></span>
+          <a>Hide Bill Summary</a>
+        </div>
+        <div class="mo-sum-row">
+          <span>Recharge Amount</span>
+          <span class="mono" id="moRechAmt">₹200</span>
+        </div>
+        <div class="mo-sum-row total">
+          <span>Payable Amount</span>
+          <span class="mono" id="moPayable">₹200</span>
+        </div>
+      </div>
+
+      <button class="mo-pay" id="moPayBtn" onclick="closeRecharge()">Pay ₹200</button>
+
+    </div>
+  </div>
+</div>
+<!-- ════ END WALLET RECHARGE POPUP ════ -->
+
+<script>
+/* ── Wallet Recharge Popup JS ──
+   Three functions required:
+   openRecharge()  — call from any "Recharge Wallet" button
+   closeRecharge() — called by ✕ and backdrop click
+   setAmt(v, el)   — called by preset pills
+*/
+function openRecharge(){
+  document.getElementById("moRecharge").classList.add("sh");
+}
+function closeRecharge(){
+  document.getElementById("moRecharge").classList.remove("sh");
+}
+function setAmt(v, el){
+  document.querySelectorAll(".mo-pre").forEach(function(p){ p.classList.remove("on"); });
+  el.classList.add("on");
+  document.getElementById("moAmtVal").textContent = v;
+  document.getElementById("moCredit").textContent = "₹" + v;
+  document.getElementById("moRechAmt").textContent = "₹" + v;
+  document.getElementById("moPayable").textContent = "₹" + v;
+  document.getElementById("moPayBtn").textContent = "Pay ₹" + v;
+}
+</script>
+
+</body>
+</html>

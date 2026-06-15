@@ -50,12 +50,17 @@ export const ReportCard: React.FC<ReportCardProps> = ({
 }) => {
   const showToast = useReportsStore((s) => s.showToast);
   const openSample = useReportsStore((s) => s.openSample);
+  const dateFilter = useReportsStore((s) => s.dateFilter);
 
   const handleDownload = async () => {
     showToast(`⬇ Preparing "${reportName}"…`);
     try {
-      await reportsApi.downloadReport(reportName);
-      showToast(`✓ "${reportName}" downloaded`);
+      const success = await reportsApi.downloadReport(reportName, dateFilter);
+      if (success === false) {
+        showToast(`❌ No data found for "${reportName}" in this date range.`);
+      } else {
+        showToast(`✓ "${reportName}" downloaded`);
+      }
     } catch {
       showToast(`❌ Failed to download "${reportName}"`);
     }

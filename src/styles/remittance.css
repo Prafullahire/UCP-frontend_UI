@@ -1,0 +1,178 @@
+/* ──────────────────────────────────────────────────────────────
+   XpressBees Sellportal — Finance / Remittance module
+   ──────────────────────────────────────────────────────────────
+
+   Visual language inherits from `orders.css` (`.ord-fbar`,
+   `.ord-fc`, `.ord-tbl`, `.ord-foot*`), the wallet module
+   (`.wt-foot-l`, `.wt-pgsize`, `.wt-empty*`) and the
+   info-center breadcrumb (`.ic-breadcrumb*`). Only the
+   remittance-specific row typography + the dark per-row
+   download button live here.
+
+   Every selector is prefixed with `.rem-` so it can't clash
+   with existing module styles.
+   ────────────────────────────────────────────────────────────── */
+
+/* ── Filter bar tweaks ────────────────────────────────────────
+   The Remittance Number search is the FIRST pill on the extreme
+   left. Match the wallet hint width so the placeholder doesn't
+   truncate on common viewport sizes. */
+.rem-srch {
+  min-width: 280px;
+}
+@media (max-width: 720px) {
+  .rem-srch {
+    min-width: 100%;
+  }
+}
+
+/* ── Table cell typography ────────────────────────────────────
+   Re-uses `.ord-tbl` base styles; only overrides the bits that
+   are unique to the remittance ledger (mono ids, money cells,
+   payment ref). */
+
+/* Remittance id — mono, bold, ink (looks like a real ledger id) */
+.rem-id {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .2px;
+}
+
+/* Display date in the PAYMENT DATE column. Same typography as the
+   wallet's per-row date stack but rendered on a single line because
+   the remittance row only carries one date stamp. */
+.rem-date {
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Money cells (COD Amount, Freight Deductions, Remittance Amount).
+   Mono so right-aligned columns visually line up, ink for normal
+   values, slightly heavier weight on the final Remittance Amount
+   column. Negative-style "deduct" colour for non-zero freight
+   deductions so refunds vs deductions are easy to scan. */
+.rem-amt {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+.rem-amt.strong  { font-weight: 700; }
+.rem-amt.deduct  { color: var(--ink2); }
+/* Zero freight deductions render as a flat "0" — drop the colour
+   intensity so the column reads as "nothing to see here". */
+.rem-amt.zero    { color: var(--ink3); font-weight: 500; }
+
+/* Payment reference (UTR-style id). Mono, ink-2 to differentiate
+   from the primary remittance id in the left-most column. */
+.rem-ref {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink2);
+  letter-spacing: .2px;
+}
+.rem-ref-empty {
+  font-family: var(--mono);
+  color: var(--ink3);
+}
+
+/* ── Per-row download button ──────────────────────────────────
+   Mirrors the supplied design: small (28×28), dark-ink fill,
+   white download glyph. Matches the existing visual language —
+   no new colour tokens, just `--ink` (the same colour used by the
+   topbar avatar surfaces and primary text). Disabled state fades
+   out so unsettled remittances read as inactive. */
+.rem-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  transition: background .12s, border-color .12s, opacity .12s, transform .04s;
+}
+.rem-dl-btn:hover  { background: var(--ink2); border-color: var(--ink2); }
+.rem-dl-btn:active { transform: translateY(1px); }
+.rem-dl-btn:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+.rem-dl-btn:disabled {
+  cursor: not-allowed;
+  opacity: .35;
+}
+.rem-dl-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* ── Table sizing ─────────────────────────────────────────────
+   Eight columns — keep the table wide enough that the labels
+   never wrap. Same min-width as the wallet ledger so the two
+   Finance grids feel like siblings. */
+table.rem-tbl { min-width: 1100px; }
+
+/* Tighter right padding on the three numeric columns so the
+   right edge of each amount stays close to its header without
+   the table feeling cramped. Columns are 1-indexed:
+     2 = COD Amount, 5 = Freight Deductions, 6 = Remittance Amount */
+.rem-tbl td:nth-child(2),
+.rem-tbl th:nth-child(2),
+.rem-tbl td:nth-child(5),
+.rem-tbl th:nth-child(5),
+.rem-tbl td:nth-child(6),
+.rem-tbl th:nth-child(6) {
+  padding-right: 18px;
+}
+
+/* ── Column widths ────────────────────────────────────────────
+   The remittance grid has one flexible column (Payment Date) and
+   six content-bound columns plus the action button. Widths are
+   pinned to the longest realistic cell at the established 12-13px
+   typography (incl. the 12px L/R cell padding from `.ord-tbl`)
+   so the column edges line up across <thead> and <tbody>. */
+
+/* 1 · REMITTANCE ID# — mono, e.g. "255417" */
+.rem-tbl th:nth-child(1),
+.rem-tbl td:nth-child(1) { width: 130px; }
+
+/* 2 · COD AMOUNT — right-aligned mono, e.g. "₹1,24,373" */
+.rem-tbl th:nth-child(2),
+.rem-tbl td:nth-child(2) { width: 130px; }
+
+/* 3 · STATUS — pill, e.g. "Paid" */
+.rem-tbl th:nth-child(3),
+.rem-tbl td:nth-child(3) { width: 110px; }
+
+/* 4 · PAYMENT DATE — flexible column. No explicit width so the
+        browser allocates remaining pixels here, matching the density
+        of the Wallet ledger's Description column. */
+
+/* 5 · FREIGHT DEDUCTIONS — right-aligned mono, e.g. "₹7,240" */
+.rem-tbl th:nth-child(5),
+.rem-tbl td:nth-child(5) { width: 150px; }
+
+/* 6 · REMITTANCE AMOUNT — right-aligned mono, e.g. "₹2,80,190" */
+.rem-tbl th:nth-child(6),
+.rem-tbl td:nth-child(6) { width: 150px; }
+
+/* 7 · PAYMENT REF# — mono, e.g. "20-01-2026" */
+.rem-tbl th:nth-child(7),
+.rem-tbl td:nth-child(7) { width: 130px; }
+
+/* 8 · DOWNLOAD — fixed 86px in markup; pin here too so the cell
+        stays centred and the icon button never floats. */
+.rem-tbl th:nth-child(8),
+.rem-tbl td:nth-child(8) { width: 86px; text-align: center; }

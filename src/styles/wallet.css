@@ -1,0 +1,213 @@
+/* ──────────────────────────────────────────────────────────────
+   XpressBees Sellportal — Finance / Wallet module
+   ──────────────────────────────────────────────────────────────
+
+   Visual language inherits from `orders.css` (`.ord-fbar`,
+   `.ord-fc`, `.ord-tbl`, `.ord-foot*`) and the info-center
+   breadcrumb (`.ic-breadcrumb*`). Only the wallet-specific
+   row typography + footer layout that isn't already covered
+   by the shared primitives lives here.
+
+   Every selector is prefixed with `.wt-` so it can't clash
+   with existing module styles.
+   ────────────────────────────────────────────────────────────── */
+
+/* ── Filter bar tweaks ────────────────────────────────────────
+   The search input is the FIRST pill on the extreme left. Give
+   it a slightly wider min-width than the default `.ord-srch`
+   so the dual-search hint ("Search AWB Number or Transaction
+   ID") doesn't truncate on common viewport sizes. */
+.wt-srch {
+  min-width: 280px;
+}
+@media (max-width: 720px) {
+  .wt-srch {
+    /* On narrow viewports let the input grow to fill the row but
+       keep it visually anchored as the first chip in source order. */
+    min-width: 100%;
+  }
+}
+
+/* ── Table cell typography ────────────────────────────────────
+   Re-uses `.ord-tbl` base styles; only overrides the bits that
+   are unique to the wallet ledger (mono ids, signed amounts,
+   running balance). */
+
+/* Transaction ID — mono, bold, ink2 (looks like a real ledger id) */
+.wt-id {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .2px;
+}
+
+/* AWB number — rendered as a button that LOOKS like a link so
+   the underlying click handler is keyboard-accessible. Inherits
+   the same blue + underline-on-hover treatment used by `.ord-id`. */
+.wt-awb {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  letter-spacing: .2px;
+}
+.wt-awb:hover { text-decoration: underline; }
+.wt-awb:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.wt-awb-empty { color: var(--ink3); font-family: var(--mono); }
+
+/* Description — slightly tighter line-height so multi-line entries
+   sit comfortably without inflating the row height. No max-width:
+   this column is the flexible one in the ledger and is expected to
+   absorb the remaining row width (see column-width block below). */
+.wt-desc {
+  font-size: 12px;
+  color: var(--ink2);
+  line-height: 1.45;
+}
+
+/* Signed amount — credits green, debits ink. The sign character
+   carries the semantic ("+ ₹" / "− ₹") so colour-blind users
+   still get the information. */
+.wt-amt {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+.wt-amt.credit { color: var(--green); }
+.wt-amt.debit  { color: var(--ink); }
+
+/* Running balance — neutral ink; negative balances flip to red
+   so an under-funded wallet is impossible to miss. */
+.wt-bal {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.wt-bal.neg { color: var(--red); }
+
+/* ── Empty state cell ─────────────────────────────────────────
+   Shown when the active filters leave no rows in the dataset.
+   Plain dashed-border look stays consistent with .ord-empty so
+   the empty experience reads as a stock platform pattern. */
+.wt-empty {
+  padding: 40px 16px !important;
+  text-align: center;
+  background: var(--s2);
+}
+.wt-empty-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.wt-empty-sub {
+  font-size: 11px;
+  color: var(--ink3);
+}
+
+/* ── Pagination footer extensions ─────────────────────────────
+   Reuses `.ord-foot` for the surface treatment; adds the inline
+   "Showing X – Y of Z   Items per page: [select]" composition
+   that the wallet ledger needs but isn't already in the orders
+   footer recipe. */
+.wt-foot-l {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--ink3);
+}
+.wt-foot-l b { color: var(--ink); font-weight: 600; }
+
+.wt-pgsize {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink2);
+}
+.wt-pgsize select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 22px 2px 8px;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--surface)
+    /* Caret arrow drawn via inline SVG to keep this stylesheet
+       free of webfont icon dependencies. */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='6' viewBox='0 0 8 6' fill='none' stroke='%239B998F' stroke-width='1.4'><path d='M1 1l3 3 3-3' stroke-linecap='round'/></svg>")
+    no-repeat right 7px center;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .12s;
+}
+.wt-pgsize select:hover  { border-color: var(--border2); }
+.wt-pgsize select:focus  { border-color: var(--orange); box-shadow: 0 0 0 3px var(--ol); }
+
+/* Wider min-width for the wallet table so column labels never wrap. */
+table.wt-tbl { min-width: 980px; }
+
+/* Slightly tighter padding on numeric columns so the right edge
+   stays close to the column header without the table feeling
+   cramped. */
+.wt-tbl td:nth-last-child(-n+2),
+.wt-tbl th:nth-last-child(-n+2) {
+  padding-right: 18px;
+}
+
+/* ── Column widths ────────────────────────────────────────────
+   The wallet ledger has one variable-length column (Description)
+   and five compact, content-bound columns. Without explicit width
+   hints the default table-layout: auto pass distributes width
+   evenly across all six columns, which leaves large empty gaps
+   beside Transaction Date and AWB Number. Pinning the five short
+   columns to widths that match their actual rendered content
+   forces all remaining horizontal space into Description so the
+   row breathes the same way Pending Orders / Shipments do.
+
+   Widths target the longest realistic cell in each column at the
+   established 12-13px typography (incl. the 12px L/R cell padding
+   from .ord-tbl, plus the 18px right-pad bump on the two numeric
+   columns above). Header + body share the same nth-child so the
+   column edges line up across <thead> and <tbody>. */
+
+/* 1 · TRANSACTION ID — mono, e.g. "TXN5629447216-C01" */
+.wt-tbl th:nth-child(1),
+.wt-tbl td:nth-child(1) { width: 152px; }
+
+/* 2 · TRANSACTION DATE — two lines, e.g. "06 May, 2026" / "03:12 PM" */
+.wt-tbl th:nth-child(2),
+.wt-tbl td:nth-child(2) { width: 110px; }
+
+/* 3 · AWB NUMBER — mono, e.g. "1504872392492" or em-dash */
+.wt-tbl th:nth-child(3),
+.wt-tbl td:nth-child(3) { width: 120px; }
+
+/* 4 · DESCRIPTION — flexible column. No explicit width so the
+        browser allocates every remaining pixel here, matching the
+        density of the Pending Orders / Shipments grids. */
+
+/* 5 · AMOUNT (₹) — right-aligned mono, e.g. "− ₹1,000.00" */
+.wt-tbl th:nth-child(5),
+.wt-tbl td:nth-child(5) { width: 130px; }
+
+/* 6 · AVAILABLE BALANCE (₹) — right-aligned mono, e.g. "₹1,23,456.78" */
+.wt-tbl th:nth-child(6),
+.wt-tbl td:nth-child(6) { width: 152px; }

@@ -44,20 +44,22 @@ const RECOVERY_ACTIONS = [
   { step: '4', title: 'Auto-flag 3rd NDR for RTO',     desc: 'Stops futile reattempts — 0% delivery rate.',    tone: 'gray' as const },
 ];
 
-export const RtoTab: React.FC = () => {
+export const RtoTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Last Week' }) => {
+  const m = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+
   /* Single-bar trend grouped chart */
-  const trendSlots = RTO_TREND.map((m) => ({
-    label: m.l,
-    bars: [{ color: 'var(--c-lost)', heightPx: (m.v / RTO_TREND_MAX) * 100, width: 28 }],
+  const trendSlots = RTO_TREND.map((tm) => ({
+    label: tm.l,
+    bars: [{ color: 'var(--c-lost)', heightPx: ((tm.v * m) / (RTO_TREND_MAX * m)) * 100, width: 28 }],
   }));
 
   /* RTO Status grouped chart (Initiated / Delivered / Undelivered per month) */
-  const statusSlots = RTO_STATUS.map((m) => ({
-    label: `${m.l} 2026`,
+  const statusSlots = RTO_STATUS.map((sm) => ({
+    label: `${sm.l} 2026`,
     bars: [
-      { color: 'var(--c-delivered)', heightPx: (m.init  / RTO_STATUS_MAX) * 100, width: 16 },
-      { color: 'var(--c-ontime)',    heightPx: (m.del   / RTO_STATUS_MAX) * 100, width: 16 },
-      { color: 'var(--c-lost)',      heightPx: (m.undel / RTO_STATUS_MAX) * 100, width: 16 },
+      { color: 'var(--c-delivered)', heightPx: ((sm.init * m)  / (RTO_STATUS_MAX * m)) * 100, width: 16 },
+      { color: 'var(--c-ontime)',    heightPx: ((sm.del * m)   / (RTO_STATUS_MAX * m)) * 100, width: 16 },
+      { color: 'var(--c-lost)',      heightPx: ((sm.undel * m) / (RTO_STATUS_MAX * m)) * 100, width: 16 },
     ],
   }));
 
@@ -71,7 +73,7 @@ export const RtoTab: React.FC = () => {
           <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
             <div>
               <div className="val-label">Total RTOs</div>
-              <div className="val-big" style={{ color: 'var(--red)' }}>{RTO_TOTAL}</div>
+              <div className="val-big" style={{ color: 'var(--red)' }}>{RTO_TOTAL * m}</div>
             </div>
             <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: 20 }}>
               <div className="val-label">RTO Rate</div>
@@ -82,30 +84,32 @@ export const RtoTab: React.FC = () => {
               <div className="val-big" style={{ color: 'var(--red)' }}>{RTO_LOSS}</div>
             </div>
           </div>
-          <StackedBar height={24} withTooltip={false} segments={RTO_REASONS} />
+          <StackedBar height={24} withTooltip={false} segments={RTO_REASONS.map(s => ({...s, v: s.v * m}))} />
           <Legend items={RTO_REASONS.map((s) => ({
-            l: s.l, v: String(s.v), c: s.c, p: `${Math.round((s.v / RTO_TOTAL) * 100)}%`,
+            l: s.l, v: String(s.v * m), c: s.c, p: `${Math.round(((s.v * m) / (RTO_TOTAL * m)) * 100)}%`,
           }))} />
         </Card>
 
         <Card title="RTO Revenue Impact" sub="Where the money goes">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {RTO_LOSS_LINES.map((r) => (
+            {RTO_LOSS_LINES.map((r) => {
+              const numVal = parseFloat(r.v.replace(/[^0-9.]/g, ''));
+              return (
               <div className="rev-line" key={r.l}>
                 <span className="rev-dot" style={{ background: r.c }} />
                 <span className="rev-lbl">{r.l}</span>
-                <span className="rev-val rev-neg">{r.v}</span>
+                <span className="rev-val rev-neg">−₹{(numVal * m).toFixed(1)}K</span>
               </div>
-            ))}
+            )})}
             <div className="rev-total">
               <span style={{ fontSize: 12, fontWeight: 700 }}>Total Loss</span>
-              <span className="val-sm" style={{ color: 'var(--red)' }}>−₹54.2K</span>
+              <span className="val-sm" style={{ color: 'var(--red)' }}>−₹{(54.2 * m).toFixed(1)}K</span>
             </div>
           </div>
           <Legend items={[
-            { l: 'Product',   v: '₹38.4K', c: 'var(--c-lost)'    },
-            { l: 'Shipping',  v: '₹14.4K', c: 'var(--c-transit)' },
-            { l: 'Packaging', v: '₹1.4K',  c: 'var(--c-insta)'   },
+            { l: 'Product',   v: `₹${(38.4 * m).toFixed(1)}K`, c: 'var(--c-lost)'    },
+            { l: 'Shipping',  v: `₹${(14.4 * m).toFixed(1)}K`, c: 'var(--c-transit)' },
+            { l: 'Packaging', v: `₹${(1.4 * m).toFixed(1)}K`,  c: 'var(--c-insta)'   },
           ]} />
         </Card>
 
@@ -124,10 +128,10 @@ export const RtoTab: React.FC = () => {
             <RankedRow
               key={p.pin}
               name={`${p.pin} ${p.city}`}
-              value={p.rto}
-              max={RTO_PINCODES[0].rto}
+              value={p.rto * m}
+              max={RTO_PINCODES[0].rto * m}
               color="var(--c-lost)"
-              meta={<span className="m-val" style={{ color: 'var(--red)' }}>{p.rto}</span>}
+              meta={<span className="m-val" style={{ color: 'var(--red)' }}>{p.rto * m}</span>}
               topBadge={
                 <Badge tone={p.reason === 'COD Refusal' ? 'amber' : 'orange'}>{p.reason}</Badge>
               }
@@ -149,8 +153,8 @@ export const RtoTab: React.FC = () => {
             <span className="bad">Steepest rise Mar→Apr (+18%)</span>. Correlates with COD growth in Tier-3.
           </Insight>
           <Legend items={[
-            { l: 'Jan', v: '32', c: 'var(--gray-m)' },
-            { l: 'May', v: '64', c: 'var(--c-lost)' },
+            { l: 'Jan', v: `${32 * m}`, c: 'var(--gray-m)' },
+            { l: 'May', v: `${64 * m}`, c: 'var(--c-lost)' },
           ]} />
         </Card>
 
@@ -159,18 +163,18 @@ export const RtoTab: React.FC = () => {
             <RankedRow
               key={r.l}
               name={r.l}
-              value={r.v}
-              max={RTO_REASONS[0].v}
+              value={r.v * m}
+              max={RTO_REASONS[0].v * m}
               color={r.c}
               meta={
                 <>
-                  <span className="m-val">{r.v}</span>
-                  <span className="m-dim">({Math.round((r.v / RTO_TOTAL) * 100)}%)</span>
+                  <span className="m-val">{r.v * m}</span>
+                  <span className="m-dim">({Math.round(((r.v * m) / (RTO_TOTAL * m)) * 100)}%)</span>
                 </>
               }
             />
           ))}
-          <Legend items={RTO_REASONS.map((r) => ({ l: r.l, v: String(r.v), c: r.c }))} />
+          <Legend items={RTO_REASONS.map((r) => ({ l: r.l, v: String(r.v * m), c: r.c }))} />
         </Card>
       </div>
 
@@ -179,13 +183,13 @@ export const RtoTab: React.FC = () => {
         <Card title="RTO Status" sub="Monthly outcomes">
           <GroupedBars slots={statusSlots} />
           <Insight>
-            <b>May: 8 still in transit.</b> Previous months had <span className="good">100% completion</span>.{' '}
-            <span className="warn">2 undelivered</span> = stuck inventory.
+            <b>May: {8 * m} still in transit.</b> Previous months had <span className="good">100% completion</span>.{' '}
+            <span className="warn">{2 * m} undelivered</span> = stuck inventory.
           </Insight>
           <Legend items={[
-            { l: 'Initiated',   v: '8',  c: 'var(--c-delivered)' },
-            { l: 'Delivered',   v: '44', c: 'var(--c-ontime)'    },
-            { l: 'Undelivered', v: '2',  c: 'var(--c-lost)'      },
+            { l: 'Initiated',   v: `${8 * m}`,  c: 'var(--c-delivered)' },
+            { l: 'Delivered',   v: `${44 * m}`, c: 'var(--c-ontime)'    },
+            { l: 'Undelivered', v: `${2 * m}`,  c: 'var(--c-lost)'      },
           ]} />
         </Card>
 

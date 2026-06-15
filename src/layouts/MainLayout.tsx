@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../components/ui/Sidebar';
 import Topbar from '../components/ui/Topbar';
+import WalletRechargeModal from '../components/ui/WalletRechargeModal';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -32,6 +33,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Topbar onMobileMenuClick={() => setMobileOpen(true)} />
         {children}
       </div>
+
+      {/* Singleton wallet recharge popup — surfaced by topbar wallet pill
+          and the Wallet Transactions "+ Recharge Wallet" CTA. */}
+      <WalletRechargeModal />
     </div>
   );
 };

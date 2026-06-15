@@ -32,15 +32,17 @@ const NDR_FILTERS = [
   { id: 'courier', label: 'Courier' },
 ];
 
-export const NdrTab: React.FC = () => {
+export const NdrTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Last Week' }) => {
+  const m = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+
   /* Pre-compute grouped-bar slot heights for the NDR Status weekly chart */
   const ndrStatusSlots = NDR_STATUS.map((w) => ({
     label: w.l,
     bars: [
-      { color: 'var(--c-ontime)',    heightPx: (w.del  / NDR_STATUS_MAX) * 100, width: 12 },
-      { color: 'var(--c-delivered)', heightPx: (w.rto  / NDR_STATUS_MAX) * 100, width: 12 },
-      { color: 'var(--c-cod)',       heightPx: (w.pend / NDR_STATUS_MAX) * 100, width: 12 },
-      { color: 'var(--c-lost)',      heightPx: (w.lost / NDR_STATUS_MAX) * 100, width: 12 },
+      { color: 'var(--c-ontime)',    heightPx: ((w.del * m)  / (NDR_STATUS_MAX * m)) * 100, width: 12 },
+      { color: 'var(--c-delivered)', heightPx: ((w.rto * m)  / (NDR_STATUS_MAX * m)) * 100, width: 12 },
+      { color: 'var(--c-cod)',       heightPx: ((w.pend * m) / (NDR_STATUS_MAX * m)) * 100, width: 12 },
+      { color: 'var(--c-lost)',      heightPx: ((w.lost * m) / (NDR_STATUS_MAX * m)) * 100, width: 12 },
     ],
   }));
 
@@ -57,27 +59,27 @@ export const NdrTab: React.FC = () => {
 
       {/* ── Fold 1 — NDR Reason Split | NDR Funnel ───────────────────── */}
       <div className="row-2">
-        <Card title="NDR Reason Split" sub={`${NDR_TOTAL} total NDRs by cause`}>
+        <Card title="NDR Reason Split" sub={`${NDR_TOTAL * m} total NDRs by cause`}>
           {NDR_REASONS.map((r) => (
             <RankedRow
               key={r.l}
               name={r.l}
-              value={r.v}
-              max={NDR_REASONS[0].v}
+              value={r.v * m}
+              max={NDR_REASONS[0].v * m}
               color={r.c}
               meta={
                 <>
-                  <span className="m-val">{r.v}</span>
-                  <span className="m-dim">({Math.round((r.v / NDR_TOTAL) * 100)}%)</span>
+                  <span className="m-val">{r.v * m}</span>
+                  <span className="m-dim">({Math.round(((r.v * m) / (NDR_TOTAL * m)) * 100)}%)</span>
                 </>
               }
             />
           ))}
-          <Legend items={NDR_REASONS.map((r) => ({ l: r.l, v: String(r.v), c: r.c }))} />
+          <Legend items={NDR_REASONS.map((r) => ({ l: r.l, v: String(r.v * m), c: r.c }))} />
         </Card>
 
         <Card title="NDR Funnel" sub="Attempt-wise progression">
-          <Funnel3 columns={NDR_FUNNEL} />
+          <Funnel3 columns={NDR_FUNNEL.map(col => ({...col, val: col.val * m}))} />
           <Insight>
             3rd NDR delivers <span className="bad">0%</span>. Flag orders reaching 3rd attempt for RTO instead.
           </Insight>
@@ -93,19 +95,19 @@ export const NdrTab: React.FC = () => {
       <div className="row-2">
         <Card title="NDR Response" sub="Seller vs Buyer conversion">
           <FunnelDual
-            scale={Math.max(NDR_RESPONSE.seller.responded, NDR_RESPONSE.buyer.responded)}
+            scale={Math.max(NDR_RESPONSE.seller.responded * m, NDR_RESPONSE.buyer.responded * m)}
             columns={[
               {
                 hdr: 'Seller Channel',
-                responded: NDR_RESPONSE.seller.responded,
-                positive:  NDR_RESPONSE.seller.positive,
-                delivered: NDR_RESPONSE.seller.delivered,
+                responded: NDR_RESPONSE.seller.responded * m,
+                positive:  NDR_RESPONSE.seller.positive * m,
+                delivered: NDR_RESPONSE.seller.delivered * m,
               },
               {
                 hdr: 'Buyer Channel',
-                responded: NDR_RESPONSE.buyer.responded,
-                positive:  NDR_RESPONSE.buyer.positive,
-                delivered: NDR_RESPONSE.buyer.delivered,
+                responded: NDR_RESPONSE.buyer.responded * m,
+                positive:  NDR_RESPONSE.buyer.positive * m,
+                delivered: NDR_RESPONSE.buyer.delivered * m,
                 colors: { responded: 'var(--c-buyer-resp)', positive: 'var(--am)', delivered: 'var(--c-ontime)' },
               },
             ]}
@@ -120,14 +122,14 @@ export const NdrTab: React.FC = () => {
         </Card>
 
         <Card title="NDR to Delivery Attempt" sub="Daily reattempt coverage">
-          <Heatmap columns={[...NDR_ATTEMPT_DAYS, 'Total']} rows={NDR_ATTEMPT_TABLE} />
+          <Heatmap columns={[...NDR_ATTEMPT_DAYS, 'Total']} rows={NDR_ATTEMPT_TABLE.map(row => ({...row, cells: row.cells.map(v => typeof v === 'number' ? v * m : v)}))} />
           <Insight>
             <b>82% reattempt rate.</b>{' '}
             <span className="bad">Sun had only 2/4 reattempted</span> — courier weekend staffing bottleneck.
           </Insight>
           <Legend items={[
-            { l: 'Reattempted', v: '23/28', c: 'var(--c-ontime)' },
-            { l: 'Missed',      v: '5',     c: 'var(--red)'      },
+            { l: 'Reattempted', v: `${23 * m}/${28 * m}`, c: 'var(--c-ontime)' },
+            { l: 'Missed',      v: `${5 * m}`,     c: 'var(--red)'      },
           ]} />
         </Card>
       </div>
@@ -145,7 +147,7 @@ export const NdrTab: React.FC = () => {
         </Card>
 
         <Card title="Seller Response" sub="Daily engagement">
-          <Heatmap columns={NDR_ATTEMPT_DAYS} rows={SELLER_RESPONSE} />
+          <Heatmap columns={NDR_ATTEMPT_DAYS} rows={SELLER_RESPONSE.map(row => ({...row, cells: row.cells.map(v => typeof v === 'number' ? v * m : v)}))} />
           <Insight>
             <b>79% responded</b> but only <span className="warn">54% positive</span>. Wed best, Thu worst.
           </Insight>
@@ -156,7 +158,7 @@ export const NdrTab: React.FC = () => {
         </Card>
 
         <Card title="Buyer Response" sub="Daily engagement">
-          <Heatmap columns={NDR_ATTEMPT_DAYS} rows={BUYER_RESPONSE} />
+          <Heatmap columns={NDR_ATTEMPT_DAYS} rows={BUYER_RESPONSE.map(row => ({...row, cells: row.cells.map(v => typeof v === 'number' ? v * m : v)}))} />
           <Insight>
             <b>Only 43% buyer response.</b>{' '}
             <span className="bad">Mon &amp; Thu = zero positive</span>. Auto-flag for prepaid-only.

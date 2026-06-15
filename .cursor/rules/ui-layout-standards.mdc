@@ -1,0 +1,61 @@
+---
+alwaysApply: false
+---
+# Enterprise Layout Standards
+
+Every list / grid screen must follow these visual rules. Pair with `table-design.mdc` (sizing) — this rule governs **placement**.
+
+## Column order recipe
+
+```
+[ Primary ID ] [ Status ] [ Metadata: Date · Ref · Channel ] [ Monetary group ] [ Action ]
+       ↑           ↑                    ↑                            ↑              ↑
+   compact     compact         medium · left-aligned         right-aligned     extreme right
+```
+
+- **Primary identifier first** — id, manifest #, AWB.
+- **Status next to the identifier** — never split by metadata. The eye gets `who + state` in one fixation.
+- **Metadata cluster in the middle** — dates, reference numbers, channels. Left-aligned.
+- **Monetary group** — all amounts adjacent and right-aligned. Add a subtle `inset` divider on the first amount column to signal "start of money block".
+- **Action column at the extreme right** — Download / View / Menu. Compact (~70–86px). Centered or icon-only.
+
+## Spacing rules
+
+- Use the shared `.ord-*` / `.ic-breadcrumb-*` recipes. Do not introduce new spacing tokens.
+- Maintain consistent page padding via the shared `.page` container.
+- Card gutter for KPI tiles inherits `.ord-kc-row`.
+- Filter bar uses `.ord-fbar`. Search input is the first pill on the extreme left when there's no second action group; otherwise pinned right via `.ord-tools-actions`.
+- Avoid empty visual gaps. If a table has no Priority-1 absorber column, prefer `width: auto` (trailing space outside the table) over a stretched flex column (whitespace inside the cell).
+
+## Alignment rules
+
+- Text columns → left-aligned.
+- Numeric / monetary columns → **right-aligned in both header and body**.
+- Status pills → left edge of the cell, vertically centered.
+- Action icons → centered in their compact column.
+
+## Composition reuse (MANDATORY)
+
+Before introducing new markup, reuse:
+
+- KPI strip — `ShipmentKpiStrip` (`staticTile: true` for non-clickable summary tiles).
+- Filter chip — `FilterChip` (`mode="single" | "multi"`).
+- Search input — `.ord-srch`.
+- Table shell — `.ord-grid` + `.ord-grid-scroll` + `.ord-tbl`.
+- Status pills — `.ord-status` with variants `green | blue | amber | red | grey`.
+- Pagination footer — `.ord-foot` + `.wt-foot-l` + `.wt-pgsize` (shared across Finance).
+- Toast — `useReportsStore().showToast`.
+
+## Reference screens (source of truth)
+
+- `src/features/finance/wallet/WalletTransactionsPage.tsx` — text-flex grid (DESCRIPTION is the Priority-1 absorber).
+- `src/features/finance/remittance/RemittancesPage.tsx` — content-bound grid (no absorber, `width: auto`).
+- `src/features/orders/PickupRequestPage.tsx` — KPI-filtered grid pattern.
+
+## Before finalizing
+
+- [ ] Status sits adjacent to the primary identifier.
+- [ ] Monetary columns are contiguous and right-aligned.
+- [ ] Action column is the right-most cell and compact.
+- [ ] No within-cell whitespace gaps — column widths track content.
+- [ ] Reuses existing primitives — no new tables / filters / chips / status libraries.

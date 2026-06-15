@@ -36,20 +36,34 @@ export const getDateRangeParams = (dateRange?: string) => {
       start.setDate(now.getDate() - 7);
       start.setHours(0, 0, 0, 0);
       break;
+    case 'last14':
+      start.setDate(now.getDate() - 14);
+      start.setHours(0, 0, 0, 0);
+      break;
     case 'last30':
       start.setDate(now.getDate() - 30);
       start.setHours(0, 0, 0, 0);
       break;
-    case 'thisMonth': // Fallbacks just in case
+    case 'last90':
+      start.setDate(now.getDate() - 90);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case 'thisMonth':
+    case 'this-month':
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
       break;
     case 'lastMonth':
+    case 'last-month':
       start.setMonth(now.getMonth() - 1);
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
       end.setDate(0);
       end.setHours(23, 59, 59, 999);
+      break;
+    case 'this-year':
+      start.setMonth(0, 1);
+      start.setHours(0, 0, 0, 0);
       break;
     case 'custom':
       // Frontend doesn't pass raw start/end yet for custom in dateRange ID
@@ -110,44 +124,44 @@ export const ordersApi = {
       }
 
       return records.map((r: any) => ({
-        id: r.id || `ORD-${Math.floor(Math.random() * 10000)}`,
+        id: r.order_id || r.id || 'N/A',
         date: r.order_date ? new Date(r.order_date * 1000).toLocaleDateString('en-GB') : 'N/A',
         time: r.order_date ? new Date(r.order_date * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A',
-        channel: r.order_source || (filters.channels?.length ? filters.channels[0] : 'Shopify'),
-        pickupLocation: filters.pickupLocations?.length ? filters.pickupLocations[0] : 'mumbai-wh-a',
+        channel: r.channel_details?.channel_name || r.order_type || 'Custom API',
+        pickupLocation: r.warehouse_id ? `Warehouse ${r.warehouse_id}` : 'Default Warehouse',
         pickup: {
-          city: 'Mumbai',
-          pin: '400001'
+          city: 'N/A', // Not exposed in list API natively
+          pin: 'N/A'
         },
         customer: {
-          name: r.customer_name || 'N/A',
-          phone: r.customer_mobile || 'N/A',
-          city: r.delivery_city || 'N/A',
-          pin: r.delivery_pincode || 'N/A'
+          name: (r.shipping_fname ? `${r.shipping_fname} ${r.shipping_lname || ''}`.trim() : r.customer_name) || 'N/A',
+          phone: r.shipping_phone || 'N/A',
+          city: r.shipping_city || 'N/A',
+          pin: r.shipping_zip || 'N/A'
         },
         product: {
-          name: r.product_name || 'N/A',
-          sku: r.sku || 'N/A',
-          qty: r.quantity || 1,
-          hsn: r.hsn_code || 'N/A'
+          name: r.order_products && r.order_products.length > 0 ? r.order_products[0].product_name : 'N/A',
+          sku: r.order_products && r.order_products.length > 0 ? r.order_products[0].product_sku : 'N/A',
+          qty: r.order_products && r.order_products.length > 0 ? r.order_products[0].product_qty : 1,
+          hsn: 'N/A'
         },
         package: {
-          deadWt: `${r.physical_weight || 1} kg`,
-          dims: `${r.length || 10}x${r.breadth || 10}x${r.height || 10} (cm)`,
-          volWt: `${((r.length || 10)*(r.breadth || 10)*(r.height || 10))/5000} kg`
+          deadWt: `${r.package_weight || 1} kg`,
+          dims: `${r.package_length || 10}×${r.package_breadth || 10}×${r.package_height || 10} (cm)`,
+          volWt: `${((r.package_length || 10)*(r.package_breadth || 10)*(r.package_height || 10))/5000} kg`
         },
         payment: {
-          mode: r.payment_type?.toLowerCase() === 'cod' ? 'COD' : (filters.paymentMode?.toLowerCase() === 'cod' ? 'COD' : 'Prepaid'),
+          mode: (r.order_payment_type || '').toLowerCase() === 'cod' ? 'COD' : 'Prepaid',
           amount: parseFloat(r.order_amount) || 0
         },
         delivery: {
-          city: r.delivery_city || 'N/A',
-          pin: r.delivery_pincode || 'N/A'
+          city: r.shipping_city || 'N/A',
+          pin: r.shipping_zip || 'N/A'
         },
-        age: 'NEW',
-        needsAttention: false,
-        incomplete: false,
-        tags: []
+        age: (r.fulfillment_status || '').toLowerCase() === 'new' ? 'NEW' : 'OLD',
+        needsAttention: false, 
+        incomplete: (!r.shipping_phone || !r.shipping_zip || !r.shipping_address),
+        tags: r.applied_tags ? r.applied_tags.split(',').filter(Boolean) : []
       }));
     } catch (err) {
       console.error('Failed to fetch pending orders:', err);
@@ -200,32 +214,32 @@ export const ordersApi = {
       }
 
       return records.map((r: any) => ({
-        id: r.id || `ORD-${Math.floor(Math.random() * 10000)}`,
-        awb: r.awb_number || `AWB${Math.floor(Math.random() * 1000000)}`,
+        id: r.order_id || r.id || 'N/A',
+        awb: r.awb_numbers || r.awb_number || 'N/A',
         date: r.order_date ? new Date(r.order_date * 1000).toLocaleDateString('en-GB') : 'N/A',
         time: r.order_date ? new Date(r.order_date * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A',
-        status: filters.shipmentStatuses?.length ? filters.shipmentStatuses[0] : (r.ship_status || r.fulfillment_status || 'in-transit'),
-        channel: r.order_source || (filters.channels?.length ? filters.channels[0] : 'Shopify'),
-        pickupLocation: filters.pickupLocations?.length ? filters.pickupLocations[0] : 'mumbai-wh-a',
+        status: r.fulfillment_status || 'in-transit',
+        channel: r.channel_details?.channel_name || r.order_type || 'Custom API',
+        pickupLocation: r.warehouse_id ? `Warehouse ${r.warehouse_id}` : 'Default Warehouse',
         pickup: {
-          city: 'Mumbai',
-          pin: '400001'
+          city: 'N/A',
+          pin: 'N/A'
         },
         customer: {
-          name: r.customer_name || 'N/A',
-          phone: r.customer_mobile || 'N/A',
-          city: r.delivery_city || 'N/A',
-          pin: r.delivery_pincode || 'N/A'
+          name: (r.shipping_fname ? `${r.shipping_fname} ${r.shipping_lname || ''}`.trim() : r.customer_name) || 'N/A',
+          phone: r.shipping_phone || 'N/A',
+          city: r.shipping_city || 'N/A',
+          pin: r.shipping_zip || 'N/A'
         },
         delivery: {
-          city: r.delivery_city || 'N/A',
-          pin: r.delivery_pincode || 'N/A'
+          city: r.shipping_city || 'N/A',
+          pin: r.shipping_zip || 'N/A'
         },
         payment: {
-          mode: r.payment_type?.toLowerCase() === 'cod' ? 'COD' : (filters.paymentMode?.toLowerCase() === 'cod' ? 'COD' : 'Prepaid'),
+          mode: (r.order_payment_type || '').toLowerCase() === 'cod' ? 'COD' : 'Prepaid',
           amount: parseFloat(r.order_amount) || 0
         },
-        tags: []
+        tags: r.applied_tags ? r.applied_tags.split(',').filter(Boolean) : []
       }));
     } catch (err) {
       console.error('Failed to fetch shipments:', err);
@@ -255,13 +269,13 @@ export const ordersApi = {
       return records.map((r: any) => {
         const date = r.order_date ? new Date(r.order_date * 1000) : new Date();
         return {
-          manifestId: String(r.awb_number || r.id || `PR-${Math.floor(Math.random() * 10000)}`),
+          manifestId: String(r.awb_numbers || r.awb_number || r.order_id || r.id || 'N/A'),
           createdDate: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
           createdTime: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          courier: r.courier_name || 'Xpressbees 1 K.G',
-          ordersCount: r.quantity || 1,
-          status: r.ship_status === 'picked' ? 'picked' : (r.ship_status === 'cancelled' ? 'cancelled' : (r.ship_status === 'out for pickup' ? 'out-for-pickup' : 'scheduled')),
-          warehouse: r.pickup_warehouse || 'PrimeWarehouse',
+          courier: r.courier_name || 'Xpressbees',
+          ordersCount: r.no_of_boxes || 1,
+          status: r.fulfillment_status === 'picked' ? 'picked' : (r.fulfillment_status === 'cancelled' ? 'cancelled' : (r.fulfillment_status === 'out for pickup' ? 'out-for-pickup' : 'scheduled')),
+          warehouse: r.warehouse_id ? `Warehouse ${r.warehouse_id}` : 'Default Warehouse',
         };
       });
     } catch (err) {

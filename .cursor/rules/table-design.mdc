@@ -1,0 +1,66 @@
+---
+description: Enterprise table design — content-weighted column sizing for all list/grid screens
+globs: src/features/**/*.tsx, src/styles/**/*.css
+alwaysApply: false
+---
+
+# Enterprise Table Design Standards
+
+Always use **content-weighted** columns. Never use equal-width tables.
+
+## Column priority
+
+**Priority 1 — Flexible** (one per table, absorbs trailing width):
+Description · Customer · Remarks · Product · Long-text notes
+
+**Priority 2 — Medium** (~110–170px, content-driven):
+Dates · AWB · Reference numbers · Channel / source
+
+**Priority 3 — Compact** (~70–115px, content-driven):
+Status · Actions · Download · IDs
+
+## Width sizing
+
+Per column: `width = max(longest header label, longest body cell) + 24px padding` (+ `18px` right-pad for monetary columns).
+
+If a table has no Priority-1 column, set `table { width: auto; min-width: <sum>; }` to prevent `.ord-tbl { width: 100% }` from auto-distributing leftover viewport as within-cell whitespace.
+
+If a table has a Priority-1 column, keep `width: 100%` and let that column absorb extra space.
+
+## Financial screens
+
+- Group monetary columns adjacent — never split by Status / Date.
+- Right-align every monetary cell **and** its header.
+- Add a subtle `inset 1px 0 0 0 var(--border)` divider on the first monetary column so the group reads as one block.
+- Use compact action columns (~70–86px) pinned at the extreme right.
+- Apply `padding-right: 18px` to monetary columns so the right edge stays close to its header.
+
+## Before finalizing
+
+- [ ] Header label and body content drive width — no manual padding.
+- [ ] One absorber column (Priority 1) OR `width: auto` if none.
+- [ ] No equal-width distribution.
+- [ ] Monetary group is visually flush + right-aligned.
+- [ ] Action column is compact and pinned right.
+- [ ] Table density matches **Wallet Transactions** and **Pickup Requests**.
+
+## Concrete example
+
+```css
+/* ❌ BAD — equal-ish widths, header drives oversized ID, monetaries split */
+.bad-tbl th:nth-child(1) { width: 150px; }  /* ID column 3× content */
+.bad-tbl th:nth-child(2) { width: 150px; }  /* Status with empty space */
+.bad-tbl th:nth-child(3) { width: 150px; }  /* Amount — split from other amounts */
+
+/* ✅ GOOD — content-weighted, monetary group flush right */
+.good-tbl { width: auto; min-width: 920px; }
+.good-tbl th:nth-child(1) { width:  80px; }  /* ID#       — compact */
+.good-tbl th:nth-child(2) { width: 108px; }  /* Status    — compact */
+.good-tbl th:nth-child(3) { width: 150px; }  /* Date      — medium */
+.good-tbl th:nth-child(4) { width: 124px; padding-right: 18px;
+  box-shadow: inset 1px 0 0 0 var(--border); }  /* Amount — start of group */
+.good-tbl th:nth-child(5) { width: 160px; padding-right: 18px; }  /* Amount */
+.good-tbl th:nth-child(6) { width:  76px; text-align: center; }   /* Action */
+```
+
+Reference implementations: `src/features/finance/wallet/WalletTransactionsPage.tsx`, `src/features/finance/remittance/RemittancesPage.tsx`.
