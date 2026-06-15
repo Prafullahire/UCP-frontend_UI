@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate,useLocation} from 'react-router-dom';
+=======
+import React, { useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+>>>>>>> 225cb97 (changes on 15th June morning)
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
 import { ordersApi } from '../../services/ordersApi';
@@ -169,6 +174,7 @@ export const NewForwardOrderPage: React.FC = () => {
   /* Drawer state — { mode, id? } open when not null. */
   const [pickupDrawer, setPickupDrawer] = useState<{ mode: 'create' | 'edit'; id?: string } | null>(null);
 
+<<<<<<< HEAD
   // Load actual warehouses on mount
   useEffect(() => {
     import('../../services/warehouseApi').then(({ warehouseApi }) => {
@@ -205,6 +211,15 @@ export const NewForwardOrderPage: React.FC = () => {
   /* ─── Customer ─────────────────────────────────────────────── */
   const [customers, setCustomers] = useState<SavedCustomer[]>(SAVED_CUSTOMERS);
   const [customerId, setCustomerId] = useState<string | null>(null);
+=======
+  /* ─── Customer ───────────────────────────────────────────────
+     The customer list is read-only for now — a future "Add Customer"
+     drawer will lift this to local state (mirroring the pickup flow). */
+  const customers: SavedCustomer[] = SAVED_CUSTOMERS;
+  const [customerId, setCustomerId] = useState<string | null>(
+    () => cloneSeed?.customerId ?? null,
+  );
+>>>>>>> 225cb97 (changes on 15th June morning)
   const selectedCustomer = customers.find((c) => c.id === customerId) ?? null;
 
   /* ─── Products ───────────────────────────────────────────── */
@@ -268,12 +283,24 @@ export const NewForwardOrderPage: React.FC = () => {
   const chargeable = chargeableWeight(Number(physicalWt) || 0, volumetricWt);
 
   /* ─── Payment ────────────────────────────────────────────── */
+<<<<<<< HEAD
   const [orderId, setOrderId] = useState<string>(genOrderId());
   const [dbOrderId, setDbOrderId] = useState<string | null>(null);
   const [isCreated, setIsCreated] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'PREPAID' | 'COD'>('COD');
   const [collectable, setCollectable] = useState<string>('');
+=======
+  const [orderId, setOrderId] = useState<string>(
+    () => cloneSeed ? `Copy of ${cloneSeed.sourceId}` : genOrderId(),
+  );
+  const [paymentMode, setPaymentMode] = useState<'PREPAID' | 'COD'>(
+    () => cloneSeed?.paymentMode ?? 'COD',
+  );
+  const [collectable, setCollectable] = useState<string>(
+    () => cloneSeed?.collectable ?? '',
+  );
+>>>>>>> 225cb97 (changes on 15th June morning)
 
   /* ─── Order lifecycle / post-create state ────────────────────
      `step` drives which view renders inside the page shell. When the
@@ -1230,7 +1257,10 @@ function genOrderId(): string {
   return Math.floor(Date.now() / 1000).toString();
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 225cb97 (changes on 15th June morning)
 interface AddressCardProps {
   name: string;
   address: string;
@@ -1374,6 +1404,9 @@ const PendingManifestView: React.FC<PendingManifestViewProps> = ({
   </div>
 );
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 225cb97 (changes on 15th June morning)
 export default NewForwardOrderPage;

@@ -53,9 +53,19 @@ export const FilterChip: React.FC<FilterChipProps> = (props) => {
 
   const isMulti = props.mode === 'multi';
   const selectedCount = isMulti ? props.values.length : props.value ? 1 : 0;
+<<<<<<< HEAD
   const isOn = isMulti
     ? props.values.length > 0
     : !!props.value && (!!options.find((o) => o.id === props.value) || props.value.includes('_') || props.value === 'custom');
+=======
+  /* Multi-select: any selection turns the chip on.
+     Single-select: only when the value is one of the current options
+     (handles tab swaps where the underlying field is shared but the
+     option set differs — e.g. dateRange used by both Date + EDD). */
+  const isOn = isMulti
+    ? props.values.length > 0
+    : !!props.value && !!options.find((o) => o.id === props.value);
+>>>>>>> 225cb97 (changes on 15th June morning)
 
   const display = useMemo(() => {
     if (isMulti) {

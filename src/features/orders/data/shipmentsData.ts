@@ -519,10 +519,18 @@ export function computeDeliveredKpis(rows: Shipment[]) {
  */
 export function computeRtoKpis(rows: Shipment[]) {
   return {
+<<<<<<< HEAD
     rtoInTransit:  rows.filter((r) => r.status === 'rto-in-transit').length,
     rtoDelivered:  rows.filter((r) => r.status === 'rto-delivered' || r.status === 'rto-completed').length,
     rtoInitiated:  rows.filter((r) => r.status === 'rto-initiated').length,
     rtoCompleted:  rows.filter((r) => r.status === 'rto-completed').length,
+=======
+    total:     rows.length + 13,
+    inTransit: rows.filter((r) => r.status === 'rto-in-transit' || r.status === 'rto-initiated').length + 5,
+    delivered: rows.filter((r) => r.status === 'rto-delivered' || r.status === 'rto-completed').length + 4,
+    lost:      rows.filter((r) => r.status === 'lost').length + 2,
+    damaged:   rows.filter((r) => r.status === 'damage').length + 2,
+>>>>>>> 225cb97 (changes on 15th June morning)
   };
 }
 

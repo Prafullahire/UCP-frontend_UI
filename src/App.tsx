@@ -7,7 +7,11 @@ import OrdersPage from './features/orders/OrdersPage';
 import NewForwardOrderPage from './features/orders/NewForwardOrderPage';
 import NewReverseOrderPage from './features/orders/NewReverseOrderPage';
 import EditForwardOrderPage from './features/orders/EditForwardOrderPage';
+<<<<<<< HEAD
 import ShipOrderPage from './features/orders/ShipOrderPage';
+=======
+import ShipNowPage from './features/orders/ShipNowPage';
+>>>>>>> 225cb97 (changes on 15th June morning)
 import PickupRequestPage from './features/orders/PickupRequestPage';
 import ProfilePage from './features/profile/ProfilePage';
 import NdrPage from './features/ndr/NdrPage';
@@ -49,7 +53,11 @@ function App() {
           <Route path="/orders/new-forward" element={<NewForwardOrderPage />} />
           <Route path="/orders/new-reverse" element={<NewReverseOrderPage />} />
           <Route path="/orders/:id/edit" element={<EditForwardOrderPage />} />
+<<<<<<< HEAD
           <Route path="/orders/:id/ship" element={<ShipOrderPage />} />
+=======
+          <Route path="/orders/:id/ship" element={<ShipNowPage />} />
+>>>>>>> 225cb97 (changes on 15th June morning)
           <Route path="/orders/pickup-request" element={<PickupRequestPage />} />
 
           <Route path="/profile" element={<ProfilePage />} />

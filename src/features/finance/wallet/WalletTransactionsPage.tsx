@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React, { useMemo, useState, useEffect } from 'react';
+=======
+import React, { useMemo, useState } from 'react';
+>>>>>>> 225cb97 (changes on 15th June morning)
 import Toast from '../../../components/ui/Toast';
 import { useReportsStore } from '../../../store/useReportsStore';
 import FilterChip from '../../orders/components/FilterChip';
@@ -13,7 +17,10 @@ import {
   formatRupees,
   type WalletTransaction,
 } from './data/walletTransactionsData';
+<<<<<<< HEAD
 import { walletApi } from '../../../services/walletApi';
+=======
+>>>>>>> 225cb97 (changes on 15th June morning)
 
 /* ── Sort state ────────────────────────────────────────────────
    Mirrors the asc → desc → off cycle used by every grid in the
@@ -87,7 +94,11 @@ function sortRows(
   const dir = sort.dir === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {
     switch (sort.key) {
+<<<<<<< HEAD
       case 'id':          return String(a.id).localeCompare(String(b.id)) * dir;
+=======
+      case 'id':          return a.id.localeCompare(b.id) * dir;
+>>>>>>> 225cb97 (changes on 15th June morning)
       case 'date':        return (a.date + a.time).localeCompare(b.date + b.time) * dir;
       case 'awb':         return (a.awb ?? '').localeCompare(b.awb ?? '') * dir;
       case 'description': return a.description.localeCompare(b.description) * dir;
@@ -133,6 +144,7 @@ export const WalletTransactionsPage: React.FC = () => {
   const [sort, setSort] = useState<WalletSortState | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
+<<<<<<< HEAD
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiBalance, setApiBalance] = useState<number | null>(null);
@@ -159,6 +171,12 @@ export const WalletTransactionsPage: React.FC = () => {
   /* ── Derived: filtered rows ─────────────────────────────── */
   const filteredRows = useMemo<WalletTransaction[]>(() => {
     let list = transactions;
+=======
+
+  /* ── Derived: filtered rows ─────────────────────────────── */
+  const filteredRows = useMemo<WalletTransaction[]>(() => {
+    let list = WALLET_TRANSACTIONS;
+>>>>>>> 225cb97 (changes on 15th June morning)
 
     if (rechargeType) {
       list = list.filter((r) => r.rechargeType === rechargeType);
@@ -174,21 +192,32 @@ export const WalletTransactionsPage: React.FC = () => {
         .map((t) => t.trim())
         .filter(Boolean);
       list = list.filter((r) => {
+<<<<<<< HEAD
         const id = String(r.id).toLowerCase();
+=======
+        const id = r.id.toLowerCase();
+>>>>>>> 225cb97 (changes on 15th June morning)
         const awb = (r.awb ?? '').toLowerCase();
         return tokens.some((t) => id.includes(t) || awb.includes(t));
       });
     }
     return list;
+<<<<<<< HEAD
   }, [rechargeType, search, transactions]);
+=======
+  }, [rechargeType, search]);
+>>>>>>> 225cb97 (changes on 15th June morning)
 
   /* ── KPI numbers (always computed against the filtered view so
         the tiles describe the slice the user is looking at) ── */
   const kpis = useMemo(() => computeWalletKpis(filteredRows), [filteredRows]);
+<<<<<<< HEAD
   
   if (apiBalance !== null) {
     kpis.availableBalance = apiBalance;
   }
+=======
+>>>>>>> 225cb97 (changes on 15th June morning)
 
   const kpiCards: KpiCardSpec[] = useMemo(
     () => [
@@ -255,6 +284,7 @@ export const WalletTransactionsPage: React.FC = () => {
     showToast(`Opening shipment ${r.awb} — coming soon`);
   };
 
+<<<<<<< HEAD
   const handleExport = () => {
     if (filteredRows.length === 0) {
       showToast('No data to export');
@@ -282,6 +312,8 @@ export const WalletTransactionsPage: React.FC = () => {
     showToast('📥 Wallet transactions export completed');
   };
 
+=======
+>>>>>>> 225cb97 (changes on 15th June morning)
   return (
     <div className="page">
       {/* ── Breadcrumb (Information Center recipe) ───────────
@@ -316,8 +348,12 @@ export const WalletTransactionsPage: React.FC = () => {
           <button
             type="button"
             className="ord-cta ord-cta-s"
+<<<<<<< HEAD
             onClick={handleExport}
             disabled={loading}
+=======
+            onClick={() => showToast('📥 Wallet transactions export started')}
+>>>>>>> 225cb97 (changes on 15th June morning)
           >
             <span style={{ display: 'inline-flex', width: 14, height: 14 }}>
               {DownloadIcon}

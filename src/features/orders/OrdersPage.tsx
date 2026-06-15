@@ -294,9 +294,19 @@ export const OrdersPage: React.FC = () => {
   };
 
   /* ─── Row-level handlers ─────────────────────────────────── */
+<<<<<<< HEAD
   const handleShip = (o: Order) => {
     navigate(`/orders/${o.id}/ship`, { state: { order: o } });
   };
+=======
+  /* Ship lands on the dedicated Ship Now page (mirrors the New Forward
+     Order flow's "Select Shipment Mode" step). The order is forwarded
+     via location state so the page can render without an extra fetch;
+     the route also resolves on a hard refresh by id-lookup against
+     PENDING_ORDERS. */
+  const handleShip = (o: Order) =>
+    navigate(`/orders/${o.id}/ship`, { state: { order: o } });
+>>>>>>> 225cb97 (changes on 15th June morning)
 
   const handleMarkReady = (s: Shipment) =>
     showToast(`✅ ${s.id} marked ready for pickup`);
@@ -315,6 +325,9 @@ export const OrdersPage: React.FC = () => {
     }
   };
 
+  const handlePrintLabel = (s: Shipment) =>
+    showToast(`🏷️ Shipping label for ${s.id} sent to printer`);
+
   /* Pending tab's edit flow lands on the dedicated EditForwardOrderPage
      which mirrors the New Order composer with the order's details
      pre-filled. Shipment tabs (post-pending lifecycle) keep their
@@ -324,8 +337,14 @@ export const OrdersPage: React.FC = () => {
     navigate(`/orders/${o.id}/edit`, { state: { order: o } });
   };
 
-  const handleCloneOrder = (o: { id: string }) =>
-    showToast(`📋 Clone ${o.id} — coming soon`);
+  /* Clone the selected row into the New Forward Order composer. The
+     full source is forwarded via location state so the destination
+     page can pre-fill its form without an extra fetch — see
+     `NewForwardOrderPage` for the field-by-field hydration. */
+  const handleCloneOrder = (o: Order | Shipment) => {
+    navigate('/orders/new-forward', { state: { clonedFrom: o } });
+    showToast(`📋 Cloned ${o.id} — review and create`);
+  };
 
   const handleDownloadPO = (s: Shipment) =>
     showToast(`📥 Purchase order for ${s.id} downloading…`);
@@ -948,10 +967,19 @@ function applyShipmentBucket(
       if (bucket === 'lateDelivery') return list.filter((s) => s.status === 'failed');
       return list;
     case 'rto':
+<<<<<<< HEAD
       if (bucket === 'rtoInTransit') return list.filter((s) => s.status === 'rto-in-transit');
       if (bucket === 'rtoDelivered') return list.filter((s) => s.status === 'rto-delivered' || s.status === 'rto-completed');
       if (bucket === 'rtoInitiated') return list.filter((s) => s.status === 'rto-initiated');
       if (bucket === 'rtoCompleted') return list.filter((s) => s.status === 'rto-completed');
+=======
+      /* Buckets match the KPI strip — In Transit also covers
+         rto-initiated since the parcel is already on its way back. */
+      if (bucket === 'inTransit')         return list.filter((s) => s.status === 'rto-in-transit' || s.status === 'rto-initiated');
+      if (bucket === 'delivered')         return list.filter((s) => s.status === 'rto-delivered' || s.status === 'rto-completed');
+      if (bucket === 'lost')              return list.filter((s) => s.status === 'lost');
+      if (bucket === 'damaged')           return list.filter((s) => s.status === 'damage');
+>>>>>>> 225cb97 (changes on 15th June morning)
       return list;
     case 'all':
       if (bucket === 'inTransit') {
@@ -1053,6 +1081,7 @@ function buildShipmentKpiCards(tab: OrderTabId, rows: Shipment[]): KpiCardSpec[]
     case 'rto': {
       const k = computeRtoKpis(rows);
       return [
+<<<<<<< HEAD
         {
           id: 'rtoInTransit', label: 'RTO In Transit', value: k.rtoInTransit,
           accent: 'blue', icon: 'return'
@@ -1069,6 +1098,18 @@ function buildShipmentKpiCards(tab: OrderTabId, rows: Shipment[]): KpiCardSpec[]
           id: 'rtoCompleted', label: 'RTO Completed', value: k.rtoCompleted,
           accent: 'ink', icon: 'package'
         },
+=======
+        { id: 'all',        label: 'All',        value: k.total,
+          accent: 'ink',  icon: 'return' },
+        { id: 'inTransit',  label: 'In Transit', value: k.inTransit,
+          accent: 'blue', icon: 'route' },
+        { id: 'delivered',  label: 'Delivered',  value: k.delivered,
+          accent: 'green', icon: 'check' },
+        { id: 'lost',       label: 'Lost',       value: k.lost,
+          accent: 'red',   icon: 'fail' },
+        { id: 'damaged',    label: 'Damaged',    value: k.damaged,
+          accent: 'amber', icon: 'warn' },
+>>>>>>> 225cb97 (changes on 15th June morning)
       ];
     }
     case 'all': {

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React, { useMemo, useState, useEffect } from 'react';
+=======
+import React, { useMemo, useState } from 'react';
+>>>>>>> 225cb97 (changes on 15th June morning)
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
 import FilterChip from '../orders/components/FilterChip';
@@ -13,6 +17,10 @@ import {
   WR_CHARGED_OPTIONS,
   WR_DATE_RANGE_OPTIONS,
   WR_KPI_COUNTS,
+<<<<<<< HEAD
+=======
+  WR_RECORDS,
+>>>>>>> 225cb97 (changes on 15th June morning)
   WR_STATUS_OPTIONS,
   liveCounts,
   recordUiStatus,
@@ -26,7 +34,10 @@ import type {
   WrSlabId,
   WrUiStatus,
 } from './types';
+<<<<<<< HEAD
 import { weightReconciliationApi } from '../../services/weightReconciliationApi';
+=======
+>>>>>>> 225cb97 (changes on 15th June morning)
 
 /* ── Icon glyphs (page header + toolbar) ─────────────────────────── */
 const RefreshIcon = (
@@ -133,6 +144,7 @@ export const WeightReconciliationPage: React.FC = () => {
      tabs are already constrained by their lifecycle bucket. */
   const [statusFilter, setStatusFilter] = useState<WrUiStatus | null>(null);
 
+<<<<<<< HEAD
   /* ─── API State ─────────────────────────────────────────── */
   const [apiRecords, setApiRecords] = useState<WrRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -140,11 +152,21 @@ export const WeightReconciliationPage: React.FC = () => {
   /* ─── Selection + per-row state (mutated as the seller acts) ─ */
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rowStates, setRowStates] = useState<Record<string, WrRowState>>({});
+=======
+  /* ─── Selection + per-row state (mutated as the seller acts) ─ */
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [rowStates, setRowStates] = useState<Record<string, WrRowState>>(() => {
+    const seed: Record<string, WrRowState> = {};
+    WR_RECORDS.forEach((r) => { seed[r.id] = r.state; });
+    return seed;
+  });
+>>>>>>> 225cb97 (changes on 15th June morning)
 
   /* ─── Modal stack ───────────────────────────────────────── */
   const [acceptFor, setAcceptFor] = useState<WrRecord | null>(null);
   const [rejectFor, setRejectFor] = useState<WrRecord | null>(null);
 
+<<<<<<< HEAD
   /* ─── Fetch API Records ─────────────────────────────────── */
   const fetchRecords = async () => {
     setIsLoading(true);
@@ -172,6 +194,12 @@ export const WeightReconciliationPage: React.FC = () => {
   const records = useMemo<WrRecord[]>(() => {
     return apiRecords.map((r) => ({ ...r, state: rowStates[r.id] !== undefined ? rowStates[r.id] : (r.state ?? null) }));
   }, [apiRecords, rowStates]);
+=======
+  /* ─── Records with the live state map applied ───────────── */
+  const records = useMemo<WrRecord[]>(() => {
+    return WR_RECORDS.map((r) => ({ ...r, state: rowStates[r.id] ?? null }));
+  }, [rowStates]);
+>>>>>>> 225cb97 (changes on 15th June morning)
 
   /* ─── Apply bucket + filters ────────────────────────────── */
   const filteredRecords = useMemo<WrRecord[]>(() => {
@@ -196,6 +224,7 @@ export const WeightReconciliationPage: React.FC = () => {
     return list;
   }, [records, activeBucket, statusFilter, slabFilter, chargedFilter]);
 
+<<<<<<< HEAD
   /* ─── KPI counts (dynamically calculated based on API response) ── */
   const counts = useMemo<WrKpiCounts>(() => {
     const next: WrKpiCounts = { all: 0, action: 0, open: 0, accepted: 0, closed: 0 };
@@ -208,6 +237,10 @@ export const WeightReconciliationPage: React.FC = () => {
     }
     return next;
   }, [records]);
+=======
+  /* ─── KPI counts (base counters + live overrides for this session) ── */
+  const counts = useMemo<WrKpiCounts>(() => liveCounts(records), [records]);
+>>>>>>> 225cb97 (changes on 15th June morning)
 
   /* ─── Selection helpers ─────────────────────────────────── */
   const toggleSelect = (id: string) => {
@@ -333,10 +366,14 @@ export const WeightReconciliationPage: React.FC = () => {
           <button
             type="button"
             className="ord-cta ord-cta-s"
+<<<<<<< HEAD
             onClick={() => {
               showToast('🔄 Refreshing reconciliation list…');
               fetchRecords();
             }}
+=======
+            onClick={() => showToast('🔄 Refreshing reconciliation list…')}
+>>>>>>> 225cb97 (changes on 15th June morning)
           >
             {RefreshIcon}
             Refresh
@@ -450,6 +487,7 @@ export const WeightReconciliationPage: React.FC = () => {
           <button
             type="button"
             className="ord-cta ord-cta-s ndr-cta-sm"
+<<<<<<< HEAD
             onClick={async () => {
               showToast('Exporting reconciliation data…');
               try {
@@ -464,6 +502,9 @@ export const WeightReconciliationPage: React.FC = () => {
                 showToast('Failed to export data');
               }
             }}
+=======
+            onClick={() => showToast('Exporting reconciliation data…')}
+>>>>>>> 225cb97 (changes on 15th June morning)
           >
             {ExportIcon}
             Export
