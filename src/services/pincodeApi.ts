@@ -41,5 +41,15 @@ export const pincodeApi = {
       console.error('Failed to download pincodes:', err);
       throw err;
     }
+  },
+
+  async getRateCalculator(payload: any): Promise<any> {
+    try {
+      const res = await api.post('https://apiv1.xpressbees.com/api/v1/pincode/shipmentRateServicibility', payload);
+      return res.data;
+    } catch (err) {
+      console.error('Failed to calculate rate:', err);
+      throw err;
+    }
   }
 };

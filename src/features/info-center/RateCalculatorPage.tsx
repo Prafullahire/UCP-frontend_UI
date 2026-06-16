@@ -11,6 +11,7 @@ import type {
   ResultTab,
   WeightUnit,
 } from './types';
+import { api } from '../../services/ordersApi';
 
 /* ── Inline SVG icons (kept here so the page stays self-contained) ── */
 
@@ -187,6 +188,9 @@ export const RateCalculatorPage: React.FC = () => {
    * empty state reappears.
    */
   const [showResult, setShowResult] = useState(false);
+  const [result, setResult] = useState<CalcOutput | null>(null);
+  const [couriers, setCouriers] = useState<any[]>([]);
+  const [calculating, setCalculating] = useState(false);
   const unitSelRef                  = useRef<HTMLDivElement | null>(null);
 
   /* ─── Derived: weights & pincode metadata ──────────────────── */
@@ -205,26 +209,88 @@ export const RateCalculatorPage: React.FC = () => {
     return (l * b * h) / 5000;
   }, [dimL, dimB, dimH]);
 
-  /**
-   * Result panel content. Derived (not stored) so changing any input
-   * after the first Calculate click instantly reflects in the breakdown
-   * — matches the prototype's `updateCalcIfShown` behaviour.
-   *
-   * `plan` is a fixed default because the XB-plan picker was removed
-   * from the simplified left-side widget.
-   */
-  const result = useMemo<CalcOutput | null>(() => {
-    if (!showResult) return null;
-    return calculateRates({
-      pickup:    pickupPin.trim(),
-      drop:      dropPin.trim(),
-      actualKg,
-      volKg,
-      plan:      DEFAULT_PLAN,
-      isCod:     payment === 'cod',
-      shipValue: parseFloat(shipValue) || 0,
-    });
-  }, [showResult, pickupPin, dropPin, actualKg, volKg, payment, shipValue]);
+  useEffect(() => {
+    if (!showResult) {
+      setResult(null);
+      return;
+    }
+
+    setCalculating(true);
+    const timer = setTimeout(async () => {
+      try {
+        const payload = {
+          origin: pickupPin.trim(),
+          destination: dropPin.trim(),
+          weight: actualKg,
+          length: Number(dimL) || 10,
+          breadth: Number(dimB) || 10,
+          height: Number(dimH) || 12,
+          payment_type: payment,
+          order_amount: Number(shipValue) || 4000,
+        };
+
+        const res = await api.post('/pincode/shipmentRateServicibility', payload);
+        const apiCouriers = res.data?.data || [];
+        setCouriers(apiCouriers);
+
+        const baseResult = calculateRates({
+          pickup: pickupPin.trim(),
+          drop: dropPin.trim(),
+          actualKg,
+          volKg,
+          plan: DEFAULT_PLAN,
+          isCod: payment === 'cod',
+          shipValue: parseFloat(shipValue) || 0,
+        });
+
+        let surfaceTotal = baseResult.surface.total;
+        let expressTotal = baseResult.express.total;
+        
+        let foundSurface = false;
+        let foundExpress = false;
+
+        for (const c of apiCouriers) {
+          const isAir = c.name?.toLowerCase().includes('air') || c.expected_delivery?.toLowerCase().includes('1-2');
+          if (isAir && !foundExpress) {
+            expressTotal = c.total_charges || expressTotal;
+            foundExpress = true;
+          } else if (!isAir && !foundSurface) {
+            surfaceTotal = c.total_charges || surfaceTotal;
+            foundSurface = true;
+          }
+        }
+
+        // Apply new totals from API
+        baseResult.surface.total = surfaceTotal;
+        baseResult.surfacePrice = surfaceTotal;
+        baseResult.surface.base = surfaceTotal / 1.18;
+        baseResult.surface.gst = surfaceTotal - baseResult.surface.base;
+
+        baseResult.express.total = expressTotal;
+        baseResult.expressPrice = expressTotal;
+        baseResult.express.base = expressTotal / 1.18;
+        baseResult.express.gst = expressTotal - baseResult.express.base;
+
+        setResult(baseResult);
+      } catch (err) {
+        console.warn('Fallback to local calculation', err);
+        setCouriers([]);
+        setResult(calculateRates({
+          pickup: pickupPin.trim(),
+          drop: dropPin.trim(),
+          actualKg,
+          volKg,
+          plan: DEFAULT_PLAN,
+          isCod: payment === 'cod',
+          shipValue: parseFloat(shipValue) || 0,
+        }));
+      } finally {
+        setCalculating(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [showResult, pickupPin, dropPin, actualKg, volKg, dimL, dimB, dimH, payment, shipValue]);
 
   /* ─── Close the weight-unit dropdown on outside click ─────── */
   useEffect(() => {
@@ -252,7 +318,7 @@ export const RateCalculatorPage: React.FC = () => {
       return;
     }
     setShowResult(true);
-    showToast('Rates calculated');
+    // API effect handles the rest
   }, [pickupPin, dropPin, showToast]);
 
   const handleReset = useCallback(() => {
@@ -527,8 +593,8 @@ export const RateCalculatorPage: React.FC = () => {
 
             {/* Action buttons */}
             <div className="ic-btn-row">
-              <button type="button" className="ic-btn-calc" onClick={handleCalculate}>
-                Calculate
+              <button type="button" className="ic-btn-calc" onClick={handleCalculate} disabled={calculating}>
+                {calculating ? 'Calculating...' : 'Calculate'}
               </button>
               <button type="button" className="ic-btn-reset" onClick={handleReset}>
                 Reset
@@ -619,7 +685,7 @@ export const RateCalculatorPage: React.FC = () => {
             </button>
           </div>
 
-          {!result ? (
+          {!result && couriers.length === 0 ? (
             <div className="ic-result-empty">
               {EmptyStateIcon}
               <div className="ic-result-empty-title">Enter shipment details</div>
@@ -635,22 +701,88 @@ export const RateCalculatorPage: React.FC = () => {
                 </span>
                 Forward: Deliveries from seller to your customer
               </div>
-              <CarrierResultCard
-                icon={SurfaceIcon}
-                variant="surface"
-                name="Surface"
-                data={result.surface}
-                baseLabel="Base freight"
-                priceSub="incl. GST & all charges"
-              />
-              <CarrierResultCard
-                icon={ExpressIcon}
-                variant="express"
-                name="Air Express"
-                data={result.express}
-                baseLabel="Base freight (Air)"
-                priceSub="incl. GST & all charges"
-              />
+              
+              {couriers.length > 0 ? (
+                couriers.map((c) => {
+                  const total = c.total_charges || 0;
+                  const cod = c.cod_charges || 0;
+                  const freight = Number(c.freight_charges);
+
+                  return (
+                    <div key={c.id} style={{
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      padding: '16px',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}>
+                      <div style={{ fontWeight: 600, fontSize: '15px', color: '#1a202c' }}>
+                        {c.name}
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <span style={{ fontSize: '24px', fontWeight: 700, color: '#1a202c' }}>
+                            ₹{total}
+                          </span>
+                          {c.eddDays && c.edd && (
+                            <span style={{ fontSize: '12px', color: '#4a5568' }}>
+                              / Delivery in {c.eddDays} days ({c.edd})
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ color: '#a0aec0' }}>
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="1" y="3" width="15" height="13"></rect>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        borderTop: '1px dashed #e2e8f0',
+                        paddingTop: '12px',
+                        fontSize: '11px',
+                        color: '#718096',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="16" x2="12" y2="12"></line>
+                          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        Freight Charges: ₹ {!isNaN(freight) ? freight.toFixed(2) : (total - cod).toFixed(2)} + COD Charges: ₹ {cod}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : result && (
+                <>
+                  <CarrierResultCard
+                    icon={SurfaceIcon}
+                    variant="surface"
+                    name="Surface"
+                    data={result.surface}
+                    baseLabel="Base freight"
+                    priceSub="incl. GST & all charges"
+                  />
+                  <CarrierResultCard
+                    icon={ExpressIcon}
+                    variant="express"
+                    name="Air Express"
+                    data={result.express}
+                    baseLabel="Base freight (Air)"
+                    priceSub="incl. GST & all charges"
+                  />
+                </>
+              )}
             </div>
           ) : (
             <div>
@@ -658,24 +790,84 @@ export const RateCalculatorPage: React.FC = () => {
                 {ReturnIcon}
                 Reverse: Package returned from customer to you
               </div>
-              <CarrierResultCard
-                icon={SurfaceIcon}
-                variant="surface"
-                name="Surface RTO"
-                data={result.rtoSurface}
-                baseLabel="Base RTO freight"
-                priceSub="incl. GST"
-                showCod={false}
-              />
-              <CarrierResultCard
-                icon={ExpressIcon}
-                variant="express"
-                name="Air Express RTO"
-                data={result.rtoExpress}
-                baseLabel="Base RTO freight (Air)"
-                priceSub="incl. GST"
-                showCod={false}
-              />
+              
+              {couriers.length > 0 ? (
+                couriers.map((c) => {
+                  const rawTotal = c.total_charges || 0;
+                  const total = rawTotal * 0.7; // RTO logic multiplier
+
+                  return (
+                    <div key={c.id} style={{
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      padding: '16px',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}>
+                      <div style={{ fontWeight: 600, fontSize: '15px', color: '#1a202c' }}>
+                        {c.name} RTO
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <span style={{ fontSize: '24px', fontWeight: 700, color: '#1a202c' }}>
+                            ₹{total.toFixed(2)}
+                          </span>
+                        </div>
+                        <div style={{ color: '#a0aec0' }}>
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="1" y="3" width="15" height="13"></rect>
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        borderTop: '1px dashed #e2e8f0',
+                        paddingTop: '12px',
+                        fontSize: '11px',
+                        color: '#718096',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="16" x2="12" y2="12"></line>
+                          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        Base RTO Freight: ₹{total.toFixed(2)}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : result && (
+                <>
+                  <CarrierResultCard
+                    icon={SurfaceIcon}
+                    variant="surface"
+                    name="Surface RTO"
+                    data={result.rtoSurface}
+                    baseLabel="Base RTO freight"
+                    priceSub="incl. GST"
+                    showCod={false}
+                  />
+                  <CarrierResultCard
+                    icon={ExpressIcon}
+                    variant="express"
+                    name="Air Express RTO"
+                    data={result.rtoExpress}
+                    baseLabel="Base RTO freight (Air)"
+                    priceSub="incl. GST"
+                    showCod={false}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>
