@@ -8,7 +8,15 @@ import CreateTicketDrawer from './components/CreateTicketDrawer';
 import TicketDetailDrawer from './components/TicketDetailDrawer';
 import BulkTicketDrawer from './components/BulkTicketDrawer';
 import { BULK_AWB_DATA, FILTER_STATUSES, INITIAL_TICKETS } from './data/supportData';
+import { supportApi } from '../../services/supportApi';
 import type { TabId, Ticket } from './types';
+
+const RefreshIcon = (
+  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" width="13" height="13">
+    <path d="M12 6A5 5 0 1 0 11 9.2" strokeLinecap="round" />
+    <path d="M12 1.5v4H8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 interface DetailState {
   ticket: Ticket;
@@ -45,11 +53,75 @@ export const SupportPage: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadTickets = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await supportApi.fetchTickets(filters);
+      if (data && data.length > 0) {
+        // HACK: send first ticket to local server for inspection
+        if (typeof window !== 'undefined') {
+          fetch('http://localhost:9999', { method: 'POST', body: JSON.stringify(data[0]) }).catch(() => {});
+        }
+        
+        // Ensure data is sorted by created_at descending so newest are at the top
+        const sortedData = [...data].sort((a: any, b: any) => {
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return dateB - dateA;
+        });
+        
+        setTickets((prevTickets) => {
+          const mapped: Ticket[] = sortedData.map((t: any) => {
+            const existing = prevTickets.find(x => x.id === (t.ticket_id || t.id));
+            const rawComments = t.comments || t.remarks || t.remarks_data || t.history || t.messages || t.remark_details || t.comments_data;
+            
+            let messages = undefined;
+            if (Array.isArray(rawComments)) {
+              messages = rawComments.map((c: any, i: number) => ({
+                id: String(c.id || i),
+                sender: (c.added_by === 'seller' || c.user_type === 'seller') ? 'seller' : 'support',
+                text: c.comments || c.remarks || c.remark || c.message || '',
+                time: c.created_at || c.date || 'N/A'
+              }));
+            } else if (existing && existing.messages) {
+              messages = existing.messages;
+            }
+
+            return {
+              id: t.ticket_id || t.id,
+              internal_id: t.id,
+              date: t.created_at?.split('T')[0] || 'N/A',
+              time: '00:00',
+              awb: t.awb_no || t.awb_number || 'N/A',
+              sub: t.sub_category || 'N/A',
+              cat: t.category || 'N/A',
+              status: t.status?.toLowerCase() || 'open',
+              due: t.resolution_due_by || 'N/A',
+              updated: t.updated_at || 'N/A',
+              sla: 'ok',
+              messages,
+            };
+          });
+          return mapped;
+        });
+      }
+    } catch (err) {
+      console.error('Error loading tickets', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters]);
+
+  React.useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
 
   /* ─── Counts ─────────────────────────────────────────── */
 
   const counts = useMemo(() => ({
-    open:     tickets.filter((t) => t.status === 'open' || t.status === 'wip' || t.status === 'awaiting').length,
+    open:     tickets.filter((t) => ['open', 'wip', 'awaiting', 'created', 'new', 'pending'].includes(t.status)).length,
     resolved: tickets.filter((t) => t.status === 'resolved').length,
     closed:   tickets.filter((t) => t.status === 'closed').length,
   }), [tickets]);
@@ -62,13 +134,14 @@ export const SupportPage: React.FC = () => {
 
   const visibleRows = useMemo(() => {
     const tabPredicate = (t: Ticket) => {
-      if (activeTab === 'open')     return t.status === 'open' || t.status === 'wip' || t.status === 'awaiting';
+      const openStatuses = ['open', 'wip', 'awaiting', 'created', 'new', 'pending'];
+      if (activeTab === 'open')     return openStatuses.includes(t.status);
       if (activeTab === 'resolved') return t.status === 'resolved';
       return t.status === 'closed';
     };
     let list = tickets.filter(tabPredicate);
     if (filters.subCategory) {
-      list = list.filter((t) => t.cat === filters.subCategory);
+      list = list.filter((t) => t.sub === filters.subCategory);
     }
     if (filters.status) {
       list = list.filter((t) => t.status === filters.status);
@@ -92,7 +165,17 @@ export const SupportPage: React.FC = () => {
     showToast(`↩ Ticket ${ticket.id} reopened — moved to top of Open tab`);
   };
 
-  const handleMarkResolved = (id: string) => {
+  const handleMarkResolved = async (id: string) => {
+    const t = tickets.find(x => x.id === id);
+    if (t) {
+      const internalId = t.internal_id || t.id;
+      await supportApi.updateTicket(internalId, {
+        id: internalId,
+        escalation_status: 'resolved',
+        useMaster: true
+      });
+    }
+
     setTickets((prev) =>
       prev.map((t) =>
         t.id === id ? { ...t, status: 'resolved', reopenHrsLeft: 48 } : t
@@ -103,8 +186,8 @@ export const SupportPage: React.FC = () => {
     showToast(`✓ Ticket ${id} marked as resolved`);
   };
 
-  const handleCreated = (ticket: Ticket) => {
-    setTickets((prev) => [ticket, ...prev]);
+  const handleCreated = () => {
+    loadTickets();
     setCreateOpen(false);
     setActiveTab('open');
   };
@@ -130,11 +213,20 @@ export const SupportPage: React.FC = () => {
 
   const subCategoryOptions = useMemo(() => {
     const distinct = new Set<string>();
-    tickets.forEach((t) => distinct.add(t.cat));
+    tickets.forEach((t) => distinct.add(t.sub));
     return Array.from(distinct).map((c) => ({ id: c, label: c }));
   }, [tickets]);
 
-  const statusOptions = FILTER_STATUSES.map((s) => ({ id: s.id, label: s.label }));
+  const statusOptions = useMemo(() => {
+    const distinct = new Set<string>();
+    tickets.forEach((t) => distinct.add(t.status));
+    return Array.from(distinct).map((s) => ({
+      id: s,
+      label: s === 'wip' || s === 'in progress' 
+        ? 'In Progress' 
+        : s.charAt(0).toUpperCase() + s.slice(1)
+    }));
+  }, [tickets]);
 
   return (
     <div className="page fade">
@@ -143,12 +235,25 @@ export const SupportPage: React.FC = () => {
           <div className="sup-ph-title">Support</div>
           <div className="sup-ph-sub">Get help by creating a ticket or reading help articles</div>
         </div>
-        <button type="button" className="btn btn-p" onClick={() => setCreateOpen(true)}>
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M8 3v10M3 8h10" strokeLinecap="round" />
-          </svg>
-          Create Ticket
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            className="btn"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'white', border: '1px solid var(--border)' }}
+            onClick={() => {
+              window.location.reload();
+            }}
+          >
+            {RefreshIcon}
+            Refresh
+          </button>
+          <button type="button" className="btn btn-p" onClick={() => setCreateOpen(true)}>
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 3v10M3 8h10" strokeLinecap="round" />
+            </svg>
+            Create Ticket
+          </button>
+        </div>
       </div>
 
       <SupportKpiOverview
@@ -207,9 +312,28 @@ export const SupportPage: React.FC = () => {
           viewOnly={detail.viewOnly}
           onClose={() => setDetail(null)}
           onMarkResolved={handleMarkResolved}
-          onSendMessage={() => showToast('✓ Message sent')}
+          onSendMessage={(newMsg) => {
+            showToast('✓ Message sent');
+            if (newMsg) {
+              setTickets(prev => prev.map(t => {
+                if (t.id === detail.ticket.id) {
+                  const msgs = t.messages || [];
+                  return { ...t, messages: [...msgs, newMsg] };
+                }
+                return t;
+              }));
+              setDetail({
+                ...detail,
+                ticket: {
+                  ...detail.ticket,
+                  messages: [...(detail.ticket.messages || []), newMsg]
+                }
+              });
+            }
+          }}
           onSubmitUpdate={() => {
             showToast('✓ Update submitted');
+            loadTickets();
             setDetail(null);
           }}
         />

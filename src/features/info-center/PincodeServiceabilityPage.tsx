@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
-import { checkServiceability } from './data/pincodeServiceabilityData';
+import { pincodeApi } from '../../services/pincodeApi';
 import { pinInfo } from './data/rateCalculatorData';
 import type { PsResult } from './types';
 
@@ -61,6 +61,13 @@ const CrossIcon = (
   </svg>
 );
 
+const RefreshIcon = (
+  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" width="12" height="12">
+    <path d="M12 6A5 5 0 1 0 11 9.2" strokeLinecap="round" />
+    <path d="M12 1.5v4H8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const EmptyStateIcon = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="52" height="52">
     <path d="M12 2C8.68 2 6 4.68 6 8c0 5 6 12 6 12s6-7 6-12c0-3.32-2.68-6-6-6z" />
@@ -100,7 +107,7 @@ export const PincodeServiceabilityPage: React.FC = () => {
 
   /* ─── Handlers ────────────────────────────────────────────── */
 
-  const handleCheck = useCallback(() => {
+  const handleCheck = useCallback(async () => {
     const pu = origin.trim();
     const dr = dest.trim();
     if (pu.length !== 6 || Number.isNaN(Number(pu))) {
@@ -111,7 +118,7 @@ export const PincodeServiceabilityPage: React.FC = () => {
       showToast('Please enter a valid 6-digit destination pincode');
       return;
     }
-    const next = checkServiceability(pu, dr);
+    const next = await pincodeApi.checkServiceability(pu, dr);
     if (!next) {
       showToast('Could not check serviceability');
       return;
@@ -119,6 +126,47 @@ export const PincodeServiceabilityPage: React.FC = () => {
     setResult(next);
     showToast('Serviceability checked');
   }, [origin, dest, showToast]);
+
+  const handleDownloadCSV = useCallback(async () => {
+    try {
+      showToast('Preparing download, please wait...');
+      const records = await pincodeApi.downloadActivePincodes();
+      
+      if (!records || records.length === 0) {
+        showToast('No active pincodes found to download');
+        return;
+      }
+      
+      // Extract headers from the first record
+      const headers = Object.keys(records[0]);
+      let csvContent = headers.join(',') + '\n';
+      
+      // Add all rows
+      records.forEach((record) => {
+        const row = headers.map(header => {
+          let val = record[header] === null || record[header] === undefined ? '' : String(record[header]);
+          // Escape quotes and wrap in quotes if contains comma
+          if (val.includes(',') || val.includes('"')) {
+             val = `"${val.replace(/"/g, '""')}"`;
+          }
+          return val;
+        });
+        csvContent += row.join(',') + '\n';
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Active_Pincodes_List.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Download complete');
+    } catch (err) {
+      showToast('Failed to download active pincodes');
+    }
+  }, [showToast]);
 
   /* ─── Render ──────────────────────────────────────────────── */
 
@@ -143,6 +191,15 @@ export const PincodeServiceabilityPage: React.FC = () => {
           <button
             type="button"
             className="ic-tbtn"
+            onClick={() => {
+              window.location.reload();
+            }}
+          >
+            {RefreshIcon} Refresh
+          </button>
+          <button
+            type="button"
+            className="ic-tbtn"
             onClick={() => navigate('/info/rate-calculator')}
           >
             {CalculatorIcon} Rate Calculator
@@ -154,12 +211,30 @@ export const PincodeServiceabilityPage: React.FC = () => {
           >
             {RateCardIcon} Rate Card
           </button>
+          
           <button
             type="button"
-            className="ic-tbtn ic-tbtn-p"
-            onClick={handleCheck}
+            onClick={handleDownloadCSV}
+            style={{
+              backgroundColor: '#1a202c',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '8px 16px',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
           >
-            {PinListIcon} Check Active Pincodes
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Active Pincodes
           </button>
         </div>
       </div>
@@ -222,22 +297,10 @@ export const PincodeServiceabilityPage: React.FC = () => {
         </div>
 
         {/* RIGHT: Result panel */}
-        <div className="ic-ps-result">
-          <div className="ic-ps-result-header">
-            <div className="ic-ps-result-title">
-              {result
-                ? `${result.originInfo?.[0] ?? `Pincode ${result.origin}`} → ${result.destInfo?.[0] ?? `Pincode ${result.destination}`}`
-                : 'Serviceability Check'}
-            </div>
-            {result && (
-              <span className={`ic-ps-pill ${result.status}`}>
-                {result.status === 'serviceable' ? '✓ Serviceable' : '✗ Not Serviceable'}
-              </span>
-            )}
-          </div>
-
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="ic-ps-result" style={{ backgroundColor: 'transparent', padding: 0, border: 'none', gap: '16px', display: 'flex', flexDirection: 'row' }}>
           {!result ? (
-            <div className="ic-ps-empty">
+            <div className="ic-ps-empty" style={{ width: '100%', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '24px' }}>
               {EmptyStateIcon}
               <div className="ic-result-empty-title">
                 Enter pincodes to check serviceability
@@ -249,28 +312,70 @@ export const PincodeServiceabilityPage: React.FC = () => {
             </div>
           ) : (
             <>
-              {result.status === 'serviceable' && (
-                <div className="ic-ps-zone-strip">
-                  <strong>{result.zoneLabel}</strong>
-                  <span className="ic-ps-zone-sep">·</span>
-                  Est. delivery: <strong>{result.etaLabel}</strong>
+              {/* Origin Column */}
+              <div style={{ flex: 1, backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ textAlign: 'center', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#1a202c', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    {PinPickupIcon} {result.origin}
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#718096', marginTop: '4px', textTransform: 'uppercase' }}>
+                    {result.originInfo ? `${result.originInfo[0]}, ${result.originInfo[1]}` : 'Unknown Location'}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '12px', fontSize: '12px', fontWeight: '500' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> Reverse</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> COD</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> Prepaid</span>
+                  </div>
                 </div>
-              )}
-              {result.services.map((s) => (
-                <div key={s.name} className="ic-ps-service-row">
-                  <div>
-                    <div className="ic-ps-service-name">
-                      <span aria-hidden="true">{s.icon}</span> {s.name}
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', maxHeight: '400px' }}>
+                  {(result as any).originCouriers?.length > 0 ? (result as any).originCouriers.map((c: any) => (
+                    <div key={c.courier_id} style={{ padding: '12px', backgroundColor: '#f7fafc', borderRadius: '6px', border: '1px solid #edf2f7' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '500', color: '#2d3748', marginBottom: '8px' }}>{c.courier_name}</div>
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#4a5568' }}>
+                         {c.cod === 'Y' && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> COD</span>}
+                         {c.prepaid === 'Y' && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> Prepaid</span>}
+                      </div>
                     </div>
-                    <div className="ic-ps-service-detail">{s.detail}</div>
+                  )) : (
+                    <div style={{ textAlign: 'center', color: '#a0aec0', padding: '20px 0' }}>No couriers found</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Destination Column */}
+              <div style={{ flex: 1, backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ textAlign: 'center', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#1a202c', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    {PinDropIcon} {result.destination}
                   </div>
-                  <div className={`ic-ps-check-icon ${s.ok ? 'ok' : 'na'}`}>
-                    {s.ok ? TickIcon : CrossIcon}
+                  <div style={{ fontSize: '14px', color: '#718096', marginTop: '4px', textTransform: 'uppercase' }}>
+                    {result.destInfo ? `${result.destInfo[0]}, ${result.destInfo[1]}` : 'Unknown Location'}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '12px', fontSize: '12px', fontWeight: '500' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> Reverse</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> COD</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> Prepaid</span>
                   </div>
                 </div>
-              ))}
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', maxHeight: '400px' }}>
+                  {(result as any).destCouriers?.length > 0 ? (result as any).destCouriers.map((c: any) => (
+                    <div key={c.courier_id} style={{ padding: '12px', backgroundColor: '#f7fafc', borderRadius: '6px', border: '1px solid #edf2f7' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '500', color: '#2d3748', marginBottom: '8px' }}>{c.courier_name}</div>
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#4a5568' }}>
+                         {c.cod === 'Y' && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> COD</span>}
+                         {c.prepaid === 'Y' && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ color: '#48BB78' }}>●</span> Prepaid</span>}
+                      </div>
+                    </div>
+                  )) : (
+                    <div style={{ textAlign: 'center', color: '#a0aec0', padding: '20px 0' }}>No couriers found</div>
+                  )}
+                </div>
+              </div>
             </>
           )}
+        </div>
         </div>
       </div>
 

@@ -2,8 +2,10 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
+import { ordersApi } from '../../services/ordersApi';
 import PickupDrawer from './components/PickupDrawer';
 import PackageDrawer from './components/PackageDrawer';
+import CustomerDrawer from './components/CustomerDrawer';
 import SavedAddressSelect, { type SavedAddressOption } from './components/SavedAddressSelect';
 import ProductSearchSelect from './components/ProductSearchSelect';
 import {
@@ -127,9 +129,10 @@ export const NewReverseOrderPage: React.FC = () => {
   const [pickupDrawer, setPickupDrawer] = useState<{ mode: 'create' | 'edit'; id?: string } | null>(null);
 
   /* ─── Customer ───────────────────────────────────────────── */
-  const customers: SavedCustomer[] = SAVED_CUSTOMERS;
+  const [customers, setCustomers] = useState<SavedCustomer[]>(SAVED_CUSTOMERS);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const selectedCustomer = customers.find((c) => c.id === customerId) ?? null;
+  const [customerDrawer, setCustomerDrawer] = useState<{ mode: 'create' | 'edit'; id?: string } | null>(null);
 
   /* ─── Products ───────────────────────────────────────────── */
   const [products] = useState<CatalogProduct[]>(CATALOG_PRODUCTS);
@@ -195,6 +198,9 @@ export const NewReverseOrderPage: React.FC = () => {
 
   /* ─── Payment ────────────────────────────────────────────── */
   const [orderId, setOrderId] = useState<string>(genOrderId());
+  const [dbOrderId, setDbOrderId] = useState<string | null>(null);
+  const [isCreated, setIsCreated] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'PREPAID' | 'COD'>('COD');
   const [collectable, setCollectable] = useState<string>('');
 
@@ -237,6 +243,21 @@ export const NewReverseOrderPage: React.FC = () => {
     setHeight(String(next.height));
     setPackageDrawer(null);
     showToast(`✓ Package "${next.name}" ${packageDrawer?.mode === 'edit' ? 'updated' : 'added'}`);
+  };
+
+  const handleCustomerSave = (next: SavedCustomer) => {
+    setCustomers((prev) => {
+      const i = prev.findIndex((c) => c.id === next.id);
+      if (i >= 0) {
+        const copy = prev.slice();
+        copy[i] = next;
+        return copy;
+      }
+      return [...prev, next];
+    });
+    setCustomerId(next.id);
+    setCustomerDrawer(null);
+    showToast(`✓ Customer "${next.name}" ${customerDrawer?.mode === 'edit' ? 'updated' : 'added'}`);
   };
 
   const onPickupChange = (id: string) => setPickupId(id);
@@ -346,34 +367,149 @@ export const NewReverseOrderPage: React.FC = () => {
     return 'Fill the required fields to continue';
   };
 
-  const handleCreateManifestLater = () => {
+  const saveOrder = async () => {
+    if (isCreated) return { success: true };
+    if (isSubmitting) return { success: false, message: 'Already submitting' };
+    if (!selectedPickup || !selectedCustomer) return { success: false, message: 'Missing pickup or customer' };
+    
+    setIsSubmitting(true);
+    const randomNumber = Math.floor(Math.random() * 10000000) + 1;
+    const payload = {
+      order_id: orderId,
+      order_number: orderId,
+      order_unique_id: randomNumber,
+      order_type: 'ecom',
+      order_payment_type: 'reverse',
+      // Shipping (where it's going back to)
+      shipping_fname: selectedPickup.name.split(' ')[0] || 'Warehouse',
+      shipping_lname: selectedPickup.name.split(' ').slice(1).join(' ') || '',
+      shipping_address: selectedPickup.address || 'Address',
+      shipping_address_2: '',
+      shipping_city: selectedPickup.city || 'City',
+      shipping_state: selectedPickup.state || 'State',
+      shipping_country: 'INDIA',
+      shipping_zip: selectedPickup.pincode,
+      shipping_phone: selectedPickup.phone?.replace(/\D/g, '').slice(-10) || '9999999999',
+      // Billing (customer who is returning it)
+      billing_fname: selectedCustomer.name.split(' ')[0] || 'Customer',
+      billing_lname: selectedCustomer.name.split(' ').slice(1).join(' ') || '',
+      billing_address: selectedCustomer.address || 'Address',
+      billing_address_2: '',
+      billing_city: selectedCustomer.city || 'City',
+      billing_state: selectedCustomer.state || 'State',
+      billing_country: 'INDIA',
+      billing_zip: selectedCustomer.pincode,
+      billing_phone: selectedCustomer.phone?.replace(/\D/g, '').slice(-10),
+      // Package
+      package_weight: Number(physicalWt),
+      package_length: Number(length),
+      package_breadth: Number(breadth),
+      package_height: Number(height),
+      // Warehouse & Pincodes
+      warehouse_id: String(selectedPickup.id),
+      originpincodecheck: selectedCustomer.pincode, // from customer
+      dispincode: selectedPickup.pincode, // to warehouse
+      // Financials
+      order_amount: grandTotal,
+      collectable_amount: paymentMode === 'COD' ? Number(collectable) : 0,
+      shipping_charges: Number(shippingCharges) || 0,
+      cod_charges: paymentMode === 'COD' ? (Number(transactionCharges) || 0) : 0,
+      tax_amount: 0,
+      discount: Number(totalDiscountInput) || 0,
+      is_reverse: 1,
+      qc_check: qcEnabled ? '1' : '0',
+      qc: [{}],
+      qc_item: qcEnabled ? [{
+        product_usage: qcAnswers['usage'] ? '1' : '0',
+        product_damage: qcAnswers['damage'] ? '1' : '0',
+        brandname: qcAnswers['brand'] ? '1' : '0',
+        brandnametype: qcAnswers['brand'] ? 'text' : '',
+        brand_name_text: qcAnswers['brand'] ? 'text' : '',
+        productsize: qcAnswers['size'] ? '1' : '0',
+        product_size_text: qcAnswers['size'] ? 'text' : '',
+        productcolor: qcAnswers['color'] ? '1' : '0',
+        product_color_text: qcAnswers['color'] ? 'text' : '',
+        product_img_1: images[0] ? "https://example.com/image1.png" : '',
+        product_img_2: images[1] ? "https://example.com/image2.png" : '',
+        product_img_3: images[2] ? "https://example.com/image3.png" : '',
+        product_img_4: images[3] ? "https://example.com/image4.png" : ''
+      }] : [],
+      // Products
+      order_products: lines.map((l) => {
+        const p = productsById[l.productId];
+        return {
+          product_name: p?.name || 'Product',
+          product_sku: p?.sku || 'SKU',
+          product_price: p?.price || 0,
+          product_qty: l.qty,
+        };
+      })
+    };
+    const response = await ordersApi.createOrder(payload);
+    if (response.success) {
+      setIsCreated(true);
+      if (response.dbId) {
+        setDbOrderId(response.dbId);
+      }
+    } else {
+      setOrderId(genOrderId());
+    }
+    setIsSubmitting(false);
+    return response;
+  };
+
+  const handleCreateManifestLater = async () => {
     if (!canCreate) {
       showToast(explainMissing());
       return;
     }
-    showToast(`✓ Reverse order ${orderId} created — pending manifest`);
-    setStep('pending-manifest');
+    const response = await saveOrder();
+    if (response.success) {
+      showToast(`✓ Reverse order ${orderId} created — pending manifest`);
+      setStep('pending-manifest');
+    } else {
+      showToast(`❌ Failed to create reverse order: ${response.message || 'Please try again.'}`);
+    }
   };
 
-  const handleCreateAndShip = () => {
+  const handleCreateAndShip = async () => {
     if (!canCreate) {
       showToast(explainMissing());
       return;
     }
-    showToast(`✓ Reverse order ${orderId} created — select a shipment mode`);
-    setSelectedModeId(null);
-    setStep('select-mode');
+    const response = await saveOrder();
+    if (response.success) {
+      showToast(`✓ Reverse order ${orderId} created — select a shipment mode`);
+      setSelectedModeId(null);
+      setStep('select-mode');
+    } else {
+      showToast(`❌ Failed to create reverse order: ${response.message || 'Please try again.'}`);
+    }
   };
 
-  const handleShipNow = () => {
+  const handleShipNow = async () => {
     if (!selectedModeId) {
       showToast('Pick a shipment mode to continue');
       return;
     }
-    const awb = genAwbNumber();
-    setAwbNumber(awb);
-    setStep('awb-assigned');
-    showToast(`✓ AWB ${awb} assigned`);
+    showToast('Shipping reverse order...');
+    let idToShip = dbOrderId || orderId;
+    if (!dbOrderId) {
+        try {
+            const listRes = await ordersApi.listOrders({ order_id: orderId });
+            const found = listRes.data.find(o => String(o.order_id) === orderId);
+            if (found && found.id) idToShip = String(found.id);
+        } catch (err) {}
+    }
+    const success = await ordersApi.shipOrder(idToShip, selectedModeId, selectedPickup?.id || 0);
+    if (success) {
+      const awb = genAwbNumber();
+      setAwbNumber(awb);
+      setStep('awb-assigned');
+      showToast(`✓ Reverse AWB ${awb} assigned`);
+    } else {
+      showToast('❌ Failed to ship reverse order. Please try again.');
+    }
   };
 
   const resetForNewOrder = () => {
@@ -389,6 +525,7 @@ export const NewReverseOrderPage: React.FC = () => {
     setCollectable('');
     setPaymentMode('COD');
     setOrderId(genOrderId());
+    setIsCreated(false);
     setSelectedModeId(null);
     setAwbNumber(null);
     /* Reverse-only resets — clear images + QC */
@@ -463,6 +600,7 @@ export const NewReverseOrderPage: React.FC = () => {
               type="button"
               className="ord-cta ord-cta-s"
               onClick={handleCreateManifestLater}
+              disabled={isSubmitting}
             >
               Create &amp; Manifest Later
             </button>
@@ -470,6 +608,7 @@ export const NewReverseOrderPage: React.FC = () => {
               type="button"
               className="ord-cta ord-cta-p"
               onClick={handleCreateAndShip}
+              disabled={isSubmitting}
             >
               <ShipIcon /> Create Order &amp; Ship
             </button>
@@ -621,7 +760,7 @@ export const NewReverseOrderPage: React.FC = () => {
                     addNewLabel="Add new customer"
                     onChange={onCustomerChange}
                     onAddNew={() => {
-                      showToast('+ Add Customer flow — coming next');
+                      setCustomerDrawer({ mode: 'create' });
                     }}
                   />
                 </div>
@@ -633,8 +772,8 @@ export const NewReverseOrderPage: React.FC = () => {
                     phone={selectedCustomer.phone}
                     email={selectedCustomer.email}
                     verified={selectedCustomer.isVerified}
-                    onEdit={() => showToast(`Edit customer ${selectedCustomer.name} — coming next`)}
-                    onAddNew={() => showToast('+ Add Customer flow — coming next')}
+                    onEdit={() => setCustomerDrawer({ mode: 'edit', id: selectedCustomer.id })}
+                    onAddNew={() => setCustomerDrawer({ mode: 'create' })}
                   />
                 )}
               </section>
@@ -1088,6 +1227,19 @@ export const NewReverseOrderPage: React.FC = () => {
         />
       )}
 
+      {customerDrawer && (
+        <CustomerDrawer
+          mode={customerDrawer.mode}
+          customer={
+            customerDrawer.mode === 'edit'
+              ? customers.find((c) => c.id === customerDrawer.id)
+              : undefined
+          }
+          onClose={() => setCustomerDrawer(null)}
+          onSave={handleCustomerSave}
+        />
+      )}
+
       {toast && <Toast />}
     </div>
   );
@@ -1106,7 +1258,7 @@ const ShipIcon: React.FC = () => (
 );
 
 function genOrderId(): string {
-  return `${Math.floor(100000 + Math.random() * 900000)}${Date.now().toString().slice(-6)}`;
+  return `ORD-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 }
 
 function genAwbNumber(): string {

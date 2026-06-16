@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
 import PickupDrawer from './components/PickupDrawer';
 import PackageDrawer from './components/PackageDrawer';
+import CustomerDrawer from './components/CustomerDrawer';
 import SavedAddressSelect, { type SavedAddressOption } from './components/SavedAddressSelect';
 import { PENDING_ORDERS } from './data/ordersData';
 import {
@@ -17,6 +18,7 @@ import {
   type SavedPickup,
 } from './data/forwardOrderData';
 import type { Order } from './types';
+import { ordersApi } from '../../services/ordersApi';
 
 /**
  * Edit Order screen.
@@ -45,14 +47,15 @@ import type { Order } from './types';
 export const EditForwardOrderPage: React.FC = () => {
   const navigate = useNavigate();
   const { id: orderIdParam } = useParams<{ id: string }>();
+  const location = useLocation();
   const showToast = useReportsStore((s) => s.showToast);
 
   /* Resolve the order. If a non-existent id ever reaches this route we
      bail back to /orders rather than rendering an empty form — keeps
      the route safe for deep-links from the future API. */
   const order = useMemo(
-    () => PENDING_ORDERS.find((o) => o.id === orderIdParam) ?? null,
-    [orderIdParam],
+    () => location.state?.order ?? PENDING_ORDERS.find((o) => o.id === orderIdParam) ?? null,
+    [location.state, orderIdParam],
   );
 
   useEffect(() => {
@@ -106,9 +109,12 @@ const EditForm: React.FC<EditFormProps> = ({ order, onCancel }) => {
     () => synthesizeCustomerFromOrder(order),
     [order],
   );
-  const [customers] = useState<SavedCustomer[]>(() => [seededCustomer, ...SAVED_CUSTOMERS]);
+  const [customers, setCustomers] = useState<SavedCustomer[]>(() => [seededCustomer, ...SAVED_CUSTOMERS]);
   const [customerId, setCustomerId] = useState<string>(seededCustomer.id);
   const selectedCustomer = customers.find((c) => c.id === customerId) ?? null;
+  const [customerDrawer, setCustomerDrawer] = useState<
+    { mode: 'create' | 'edit'; id?: string } | null
+  >(null);
 
   /* ─── Package Details ─── */
   const seededPkg = useMemo(() => parsePackageFromOrder(order), [order]);
@@ -158,6 +164,21 @@ const EditForm: React.FC<EditFormProps> = ({ order, onCancel }) => {
     showToast(`✓ Pickup "${next.name}" ${pickupDrawer?.mode === 'edit' ? 'updated' : 'added'}`);
   };
 
+  const handleCustomerSave = (next: SavedCustomer) => {
+    setCustomers((prev) => {
+      const i = prev.findIndex((c) => c.id === next.id);
+      if (i >= 0) {
+        const copy = prev.slice();
+        copy[i] = next;
+        return copy;
+      }
+      return [...prev, next];
+    });
+    setCustomerId(next.id);
+    setCustomerDrawer(null);
+    showToast(`✓ Customer "${next.name}" ${customerDrawer?.mode === 'edit' ? 'updated' : 'added'}`);
+  };
+
   const handlePackageSave = (next: SavedPackage) => {
     setSavedPackages((prev) => {
       const i = prev.findIndex((p) => p.id === next.id);
@@ -199,16 +220,40 @@ const EditForm: React.FC<EditFormProps> = ({ order, onCancel }) => {
     Number(physicalWt) > 0 &&
     (paymentMode === 'PREPAID' || Number(collectable) > 0);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSave) {
       showToast('Pickup, customer, package weight and collectable amount are required');
       return;
     }
-    /* Mock persistence — in a real build this would PATCH /orders/:id
-       and the Pending grid would re-read the row. The toast confirms
-       the save and we drop the user back on the Orders list. */
-    showToast(`✓ Order ${order.id} updated`);
-    navigate('/orders');
+    
+    showToast(`Saving changes for order ${order.id}...`);
+    
+    const payload: any = {
+      physical_weight: Number(physicalWt),
+      length: Number(length),
+      breadth: Number(breadth),
+      height: Number(height),
+      payment_type: paymentMode,
+      pickup_warehouse_name: selectedPickup?.name,
+      pickup_city: selectedPickup?.city,
+      pickup_pincode: selectedPickup?.pincode,
+      customer_name: selectedCustomer?.name,
+      customer_mobile: selectedCustomer?.phone?.replace(/\D/g, ''),
+      delivery_city: selectedCustomer?.city,
+      delivery_pincode: selectedCustomer?.pincode
+    };
+    if (paymentMode === 'COD') {
+      payload.order_amount = Number(collectable);
+    }
+    // Note: The UI doesn't currently edit everything we send back, but we send what we can.
+    
+    const success = await ordersApi.bulkUpdateOrders([order.id], payload);
+    if (success) {
+      showToast(`✓ Order ${order.id} updated successfully`);
+      navigate('/orders');
+    } else {
+      showToast(`❌ Failed to update order ${order.id}. Please try again.`);
+    }
   };
 
   /* ─── Adapters for SavedAddressSelect ─── */
@@ -239,8 +284,8 @@ const EditForm: React.FC<EditFormProps> = ({ order, onCancel }) => {
 
   /* Derived display values for the locked Product Details card. */
   const orderAmountDisplay = '₹' + order.payment.amount.toLocaleString('en-IN');
-  const unitPrice = order.product.qty > 0
-    ? order.payment.amount / order.product.qty
+  const unitPrice = (order.product?.qty || 1) > 0
+    ? order.payment.amount / (order.product?.qty || 1)
     : order.payment.amount;
   const unitPriceDisplay = '₹' + unitPrice.toLocaleString('en-IN', {
     maximumFractionDigits: 2,
@@ -331,7 +376,7 @@ const EditForm: React.FC<EditFormProps> = ({ order, onCancel }) => {
                   placeholder="Search by name or phone"
                   addNewLabel="Add new customer"
                   onChange={onCustomerChange}
-                  onAddNew={() => showToast('+ Add Customer flow — coming next')}
+                  onAddNew={() => setCustomerDrawer({ mode: 'create' })}
                 />
               </div>
 
@@ -342,10 +387,8 @@ const EditForm: React.FC<EditFormProps> = ({ order, onCancel }) => {
                   phone={selectedCustomer.phone}
                   email={selectedCustomer.email}
                   verified={selectedCustomer.isVerified}
-                  onEdit={() =>
-                    showToast(`Edit customer ${selectedCustomer.name} — coming next`)
-                  }
-                  onAddNew={() => showToast('+ Add Customer flow — coming next')}
+                  onEdit={() => setCustomerDrawer({ mode: 'edit', id: selectedCustomer.id })}
+                  onAddNew={() => setCustomerDrawer({ mode: 'create' })}
                 />
               )}
             </section>
@@ -362,10 +405,10 @@ const EditForm: React.FC<EditFormProps> = ({ order, onCancel }) => {
 
             <div className="ord-edit-locked">
               <div className="ord-edit-locked-grid">
-                <KV label="Product"     value={order.product.name} />
-                <KV label="SKU"         value={order.product.sku} mono />
-                <KV label="HSN"         value={order.product.hsn} mono />
-                <KV label="Quantity"    value={String(order.product.qty)} />
+                <KV label="Product"     value={order.product?.name || 'N/A'} />
+                <KV label="SKU"         value={order.product?.sku || 'N/A'} mono />
+                <KV label="HSN"         value={order.product?.hsn || 'N/A'} mono />
+                <KV label="Quantity"    value={String(order.product?.qty || 1)} />
                 <KV label="Unit Price"  value={unitPriceDisplay} mono />
                 <KV label="Order Total" value={orderAmountDisplay} mono />
               </div>
@@ -564,6 +607,19 @@ const EditForm: React.FC<EditFormProps> = ({ order, onCancel }) => {
         />
       )}
 
+      {customerDrawer && (
+        <CustomerDrawer
+          mode={customerDrawer.mode}
+          customer={
+            customerDrawer.mode === 'edit'
+              ? customers.find((c) => c.id === customerDrawer.id)
+              : undefined
+          }
+          onClose={() => setCustomerDrawer(null)}
+          onSave={handleCustomerSave}
+        />
+      )}
+
       {toast && <Toast />}
     </div>
   );
@@ -711,14 +767,17 @@ function synthesizeCustomerFromOrder(order: Order): SavedCustomer {
  * Returns sensible zeros when the format isn't recognised — the form
  * surface remains usable and the user can simply re-enter the values.
  */
-function parsePackageFromOrder(order: Order): {
+function parsePackageFromOrder(order: any): {
   physicalWeight: number;
   length: number;
   breadth: number;
   height: number;
 } {
-  const physicalWeight = parseFloat(order.package.deadWt) || 0;
-  const dimsMatch = order.package.dims.match(/(\d+(?:\.\d+)?)[×x](\d+(?:\.\d+)?)[×x](\d+(?:\.\d+)?)/);
+  const deadWt = order.package?.deadWt || '0 kg';
+  const dims = order.package?.dims || '10x10x10 (cm)';
+
+  const physicalWeight = parseFloat(deadWt) || 0;
+  const dimsMatch = dims.match(/(\d+(?:\.\d+)?)[×x](\d+(?:\.\d+)?)[×x](\d+(?:\.\d+)?)/i);
   return {
     physicalWeight,
     length:  dimsMatch ? Number(dimsMatch[1]) : 0,

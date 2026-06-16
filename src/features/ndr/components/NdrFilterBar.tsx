@@ -20,7 +20,7 @@ export interface NdrFilterState {
 }
 
 export const initialNdrFilters: NdrFilterState = {
-  dateRange: null,
+  dateRange: 'last30',
   reason: null,
   attempts: null,
   shipmentType: null,
@@ -31,7 +31,7 @@ export const initialNdrFilters: NdrFilterState = {
 /** True when any chip is active (drives the "Clear all" button). */
 export function hasAnyNdrFilter(s: NdrFilterState): boolean {
   return (
-    s.dateRange !== null ||
+    s.dateRange !== 'last30' ||
     s.reason !== null ||
     s.attempts !== null ||
     s.shipmentType !== null ||

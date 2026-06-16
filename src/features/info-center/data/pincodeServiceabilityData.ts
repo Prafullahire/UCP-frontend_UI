@@ -32,7 +32,8 @@ const ETA_BY_ZONE: Record<Zone, string> = {
 };
 
 function isServiceable(pin: string, info: PinDetails | null): boolean {
-  return PS_SERVICEABLE.has(pin) || info !== null;
+  // For UI demonstration purposes, treat all valid 6-digit pincodes as serviceable
+  return /^[0-9]{6}$/.test(pin);
 }
 
 /**

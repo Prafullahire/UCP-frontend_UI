@@ -47,6 +47,13 @@ const TnCChevron = (
   </svg>
 );
 
+const RefreshIcon = (
+  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" width="12" height="12">
+    <path d="M12 6A5 5 0 1 0 11 9.2" strokeLinecap="round" />
+    <path d="M12 1.5v4H8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 /* ── Constants ────────────────────────────────────────────────── */
 
 const PLAN_OPTIONS: { value: PlanKey; label: string }[] = [
@@ -134,6 +141,15 @@ export const RateCardPage: React.FC = () => {
           </div>
         </div>
         <div className="ic-rc-cta-row">
+          <button
+            type="button"
+            className="ic-tbtn"
+            onClick={() => {
+              window.location.reload();
+            }}
+          >
+            {RefreshIcon} Refresh
+          </button>
           <button
             type="button"
             className="ic-tbtn"

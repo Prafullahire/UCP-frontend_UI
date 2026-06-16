@@ -44,7 +44,7 @@ export interface SavedPickup {
 
 export const SAVED_PICKUPS: SavedPickup[] = [
   {
-    id: 'pk-design-studio-1',
+    id: '1',
     name: 'Design Studio 1',
     tag: 'Warehouse',
     address: '123 Green Valley Road, Kalyani Nagar, Pune, Maharashtra, 411014, India.',
@@ -65,7 +65,7 @@ export const SAVED_PICKUPS: SavedPickup[] = [
     returnSameAsPickup: true,
   },
   {
-    id: 'pk-pune-warehouse-1',
+    id: '2',
     name: 'Pune XB Warehouse#1',
     tag: 'Warehouse',
     address: '78 Industrial Area, Bhosari, Pune, Maharashtra, 411026, India.',
@@ -86,7 +86,7 @@ export const SAVED_PICKUPS: SavedPickup[] = [
     returnSameAsPickup: true,
   },
   {
-    id: 'pk-bangalore-hub',
+    id: '3',
     name: 'Bangalore Fulfilment Hub',
     tag: 'Warehouse',
     address: '4th Cross, Indiranagar, Bengaluru, Karnataka, 560038, India.',

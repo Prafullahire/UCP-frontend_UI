@@ -56,7 +56,7 @@ export const NdrViewDetailsDrawer: React.FC<NdrViewDetailsDrawerProps> = ({
   const modeBadgeLabel = r.transportMode === 'air' ? 'Air' : 'Surface';
   const paymentBadgeClass = r.paymentMode === 'cod' ? 'cod' : 'prepaid';
   const paymentBadgeLabel = r.paymentMode === 'cod' ? 'COD' : 'Prepaid';
-  const skuSuffix = r.orderId.replace(/^CE-/, '');
+  const skuSuffix = String(r.orderId).replace(/^CE-/, '');
 
   return (
     <div

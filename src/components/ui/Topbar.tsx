@@ -38,11 +38,13 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     id: 'create-order',
     label: 'Create Order',
+    path: '/orders/new-forward',
     icon: QA_ICON('M10 4v12M4 10h12'),
   },
   {
     id: 'create-reverse',
     label: 'Create Reverse Order',
+    path: '/orders/new-reverse',
     icon: (
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true">
         <path d="M3.5 10a6.5 6.5 0 1011.7-3.9" />
@@ -53,7 +55,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     id: 'pickup',
     label: 'Create Pickup Request',
-    path: '/orders/pickup',
+    path: '/orders/pickup-request',
     icon: (
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true">
         <path d="M3 6.5L10 3l7 3.5v7L10 17l-7-3.5v-7z" />
@@ -87,6 +89,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     id: 'create-ticket',
     label: 'Create Ticket',
+    path: '/support',
     icon: (
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true">
         <path d="M5 2.5h7l4 4v11a0 0 0 010 0H5a0 0 0 010 0v-15a0 0 0 010 0z" />
@@ -121,12 +124,19 @@ export const Topbar: React.FC<TopbarProps> = ({ onMobileMenuClick }) => {
   useEffect(() => {
     if (!qaOpen) return;
     const onDocClick = (e: MouseEvent) => {
-      if (qaWrapRef.current && !qaWrapRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (qaOpen && qaWrapRef.current && !qaWrapRef.current.contains(target)) {
         setQaOpen(false);
+      }
+      if (avOpen && avWrapRef.current && !avWrapRef.current.contains(target)) {
+        setAvOpen(false);
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setQaOpen(false);
+      if (e.key === 'Escape') {
+        setQaOpen(false);
+        setAvOpen(false);
+      }
     };
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
@@ -181,11 +191,13 @@ export const Topbar: React.FC<TopbarProps> = ({ onMobileMenuClick }) => {
     try {
       sessionStorage.clear();
       localStorage.removeItem('xb.session');
+      localStorage.removeItem('token');
+      localStorage.removeItem('kavachToken');
     } catch {
       /* storage access can throw in private-mode browsers — ignore. */
     }
     showToast('You have been logged out');
-    navigate('/');
+    navigate('/login');
   };
 
   return (
@@ -292,7 +304,17 @@ export const Topbar: React.FC<TopbarProps> = ({ onMobileMenuClick }) => {
             aria-expanded={pfOpen}
             onClick={() => setPfOpen((p) => !p)}
           >
-            <span className="tb-av-circle" aria-hidden="true">MR</span>
+            <span className="tb-av-circle" aria-hidden="true">
+              {(() => {
+                const email = localStorage.getItem('email');
+                if (!email) return 'MR';
+                const namePart = email.split('@')[0];
+                const parts = namePart.split('.').filter(p => p !== 'ext');
+                if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+                if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+                return 'MR';
+              })()}
+            </span>
           </button>
 
           <div

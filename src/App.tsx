@@ -7,6 +7,7 @@ import OrdersPage from './features/orders/OrdersPage';
 import NewForwardOrderPage from './features/orders/NewForwardOrderPage';
 import NewReverseOrderPage from './features/orders/NewReverseOrderPage';
 import EditForwardOrderPage from './features/orders/EditForwardOrderPage';
+import ShipOrderPage from './features/orders/ShipOrderPage';
 import PickupRequestPage from './features/orders/PickupRequestPage';
 import ProfilePage from './features/profile/ProfilePage';
 import NdrPage from './features/ndr/NdrPage';
@@ -14,6 +15,8 @@ import RateCalculatorPage from './features/info-center/RateCalculatorPage';
 import RateCardPage from './features/info-center/RateCardPage';
 import PincodeServiceabilityPage from './features/info-center/PincodeServiceabilityPage';
 import ComingSoonPage from './components/ui/ComingSoonPage';
+import Landing from './pages/Landing/Landing.tsx';
+import SignupPage from './pages/Auth/SignupPage';
 import './App.css';
 
 /**
@@ -27,18 +30,23 @@ import './App.css';
 function App() {
   return (
     <BrowserRouter>
-      <MainLayout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Routes>
+        <Route path="/login" element={<Landing />} />
+        <Route path="/auth/register" element={<SignupPage />} />
+        <Route path="/*" element={
+          <MainLayout>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-          {/* Implemented modules */}
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
+              {/* Implemented modules */}
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
 
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/new-forward" element={<NewForwardOrderPage />} />
           <Route path="/orders/new-reverse" element={<NewReverseOrderPage />} />
           <Route path="/orders/:id/edit" element={<EditForwardOrderPage />} />
+          <Route path="/orders/:id/ship" element={<ShipOrderPage />} />
           <Route path="/orders/pickup-request" element={<PickupRequestPage />} />
 
           <Route path="/profile" element={<ProfilePage />} />
@@ -58,10 +66,12 @@ function App() {
           <Route path="/services/channels" element={<ComingSoonPage title="Channels" />} />
           <Route path="/settings" element={<ComingSoonPage title="Settings" />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<ComingSoonPage title="Page Not Found" />} />
-        </Routes>
-      </MainLayout>
+              {/* Fallback */}
+              <Route path="*" element={<ComingSoonPage title="Page Not Found" />} />
+            </Routes>
+          </MainLayout>
+        } />
+      </Routes>
     </BrowserRouter>
   );
 }

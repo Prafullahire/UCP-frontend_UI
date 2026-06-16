@@ -21,10 +21,17 @@ export interface Ticket {
   due: string;
   updated: string;
   sla: SlaStatus;
+  internal_id?: string | number;
   /** Hours remaining in the 48hr re-open window once status === 'resolved'. */
   reopenHrsLeft?: number;
   /** Highlights the row briefly after creation/reopen. */
   isNew?: boolean;
+  messages?: Array<{
+    id: string;
+    sender: 'seller' | 'support';
+    text: string;
+    time: string;
+  }>;
 }
 
 export type TabId = 'open' | 'resolved' | 'closed';

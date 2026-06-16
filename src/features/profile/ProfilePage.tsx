@@ -100,7 +100,13 @@ export const ProfilePage: React.FC = () => {
   const [aadhar, setAadhar]           = useState<string>('425826328278');
   const [pan, setPan]                 = useState<string>('EYIPK1860G');
 
-  const [aadharName, setAadharName]   = useState<string>('Yash Kewalramani');
+  const [aadharName, setAadharName]   = useState<string>(() => {
+    const email = localStorage.getItem('email');
+    if (!email) return 'User Name';
+    const namePart = email.split('@')[0];
+    const parts = namePart.split('.').filter(p => p !== 'ext');
+    return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  });
   const [aadharDob, setAadharDob]     = useState<string>('1998-03-21');
   const [aadharGender, setAadharGender] = useState<string>('M');
   const [aadharAddress, setAadharAddress] = useState<string>(
@@ -108,7 +114,13 @@ export const ProfilePage: React.FC = () => {
   );
   const [aadharImage, setAadharImage] = useState<string | null>(null);
 
-  const [panName, setPanName]         = useState<string>('');
+  const [panName, setPanName]         = useState<string>(() => {
+    const email = localStorage.getItem('email');
+    if (!email) return 'User Name';
+    const namePart = email.split('@')[0];
+    const parts = namePart.split('.').filter(p => p !== 'ext');
+    return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+  });
   const [panImage, setPanImage]       = useState<string | null>(null);
 
   const isAadharVerified = aadhar.trim().length === 12;
@@ -155,13 +167,7 @@ export const ProfilePage: React.FC = () => {
                 role="tab"
                 aria-selected={isActive}
                 className={`pf-step ${isActive ? 'on' : ''} ${isComplete ? 'done' : ''}`}
-                onClick={() => {
-                  if (s.id === 'kyc') {
-                    setActiveStep('kyc');
-                  } else {
-                    showToast(`${s.title} ${s.subtitle.toLowerCase()} — coming soon`);
-                  }
-                }}
+                onClick={() => setActiveStep(s.id)}
               >
                 <span className="pf-step-ico" aria-hidden="true">{s.icon}</span>
                 <span className="pf-step-text">
@@ -182,6 +188,7 @@ export const ProfilePage: React.FC = () => {
            the left, the document-evidence panel (Aadhar + PAN) on
            the right. Each panel is an `.ord-nf-card` so the visual
            treatment matches the New Order screens. */}
+      {activeStep === 'kyc' && (
       <div className="pf-grid">
         {/* ── Left: identity panel ─────────────────────────── */}
         <section className="ord-nf-card pf-card">
@@ -338,6 +345,67 @@ export const ProfilePage: React.FC = () => {
           </div>
         </section>
       </div>
+      )}
+
+      {/* ── Step body: Company Info ────────────────────────────────── */}
+      {activeStep === 'company' && (
+      <div className="pf-grid">
+        <section className="ord-nf-card pf-card">
+          <div className="pf-subhead">Company Details</div>
+          <div className="sup-mf">
+            <div className="sup-ml">Company Name <Req /></div>
+            <input className="sup-mi" type="text" value={aadharName + ' Enterprises'} readOnly />
+          </div>
+          <div className="sup-mf">
+            <div className="sup-ml">Registered Email <Req /></div>
+            <input className="sup-mi" type="text" value={localStorage.getItem('email') || ''} readOnly />
+          </div>
+          <div className="pf-card-ft">
+            <button type="button" className="ord-cta ord-cta-p" onClick={handleSave}>Save Changes</button>
+          </div>
+        </section>
+      </div>
+      )}
+
+      {/* ── Step body: Bank Details ────────────────────────────────── */}
+      {activeStep === 'bank' && (
+      <div className="pf-grid">
+        <section className="ord-nf-card pf-card">
+          <div className="pf-subhead">Bank Details</div>
+          <div className="sup-mf">
+            <div className="sup-ml">Account Holder Name <Req /></div>
+            <input className="sup-mi" type="text" value={aadharName} readOnly />
+          </div>
+          <div className="sup-mf">
+            <div className="sup-ml">Account Number <Req /></div>
+            <input className="sup-mi" type="text" value="XXXX-XXXX-1234" readOnly />
+          </div>
+          <div className="pf-card-ft">
+            <button type="button" className="ord-cta ord-cta-p" onClick={handleSave}>Save Changes</button>
+          </div>
+        </section>
+      </div>
+      )}
+
+      {/* ── Step body: Agreement ────────────────────────────────── */}
+      {activeStep === 'agreement' && (
+      <div className="pf-grid">
+        <section className="ord-nf-card pf-card">
+          <div className="pf-subhead">Service Agreement</div>
+          <div className="sup-mf">
+            <div className="sup-ml">Authorized Signatory <Req /></div>
+            <input className="sup-mi" type="text" value={aadharName} readOnly />
+          </div>
+          <div className="sup-mf">
+            <div className="sup-ml">Signatory Email <Req /></div>
+            <input className="sup-mi" type="text" value={localStorage.getItem('email') || ''} readOnly />
+          </div>
+          <div className="pf-card-ft">
+            <button type="button" className="ord-cta ord-cta-p" onClick={handleSave}>Save Changes</button>
+          </div>
+        </section>
+      </div>
+      )}
 
       {toast && <Toast />}
     </div>

@@ -71,8 +71,8 @@ export const PickupDrawer: React.FC<PickupDrawerProps> = ({ mode, pickup, onClos
   }, [supportSameAsContact, contactPhone]);
 
   const canSubmit = useMemo(
-    () => !!name.trim() && !!pincode.trim() && !!state.trim() && !!city.trim() && !!address.trim() && !!contactPhone.trim() && !!contactPerson.trim(),
-    [name, pincode, state, city, address, contactPhone, contactPerson],
+    () => !!name.trim() && !!pincode.trim() && !!state.trim() && !!city.trim() && !!address.trim(),
+    [name, pincode, state, city, address],
   );
 
   const clearAll = () => {
@@ -216,14 +216,14 @@ export const PickupDrawer: React.FC<PickupDrawerProps> = ({ mode, pickup, onClos
 
           <div className="sup-row">
             <div className="sup-mf">
-              <div className="sup-ml">Contact No. <Req /></div>
+              <div className="sup-ml">Contact No.</div>
               <PhoneInput value={contactPhone} onChange={setContactPhone} />
               {isVerified && (
                 <div className="field-hint ok"><span>✓</span><span>Verified</span></div>
               )}
             </div>
             <div className="sup-mf">
-              <div className="sup-ml">Contact Person Name <Req /></div>
+              <div className="sup-ml">Contact Person Name</div>
               <input
                 className="sup-mi"
                 type="text"
@@ -250,7 +250,7 @@ export const PickupDrawer: React.FC<PickupDrawerProps> = ({ mode, pickup, onClos
 
           <div className="sup-row" style={{ marginTop: 10 }}>
             <div className="sup-mf">
-              <div className="sup-ml">Contact No. <Req /> <InfoDot /></div>
+              <div className="sup-ml">Contact No. <InfoDot /></div>
               <PhoneInput
                 value={supportPhone}
                 onChange={setSupportPhone}
@@ -258,7 +258,7 @@ export const PickupDrawer: React.FC<PickupDrawerProps> = ({ mode, pickup, onClos
               />
             </div>
             <div className="sup-mf">
-              <div className="sup-ml">Email Id <Req /> <InfoDot /></div>
+              <div className="sup-ml">Email Id <InfoDot /></div>
               <input
                 className="sup-mi"
                 type="email"

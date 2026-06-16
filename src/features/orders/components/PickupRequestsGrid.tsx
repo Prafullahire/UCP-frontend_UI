@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   PICKUP_STATUS_META,
   type PickupRequest,
@@ -33,6 +33,8 @@ interface PickupRequestsGridProps {
   onExport: (row: PickupRequest) => void;
   /** Fires on the "Escalate" button click. */
   onEscalate: (row: PickupRequest) => void;
+  /** Fires when manifest ID is clicked */
+  onManifestClick?: (row: PickupRequest) => void;
 }
 
 interface ColumnSpec {
@@ -97,8 +99,22 @@ export const PickupRequestsGrid: React.FC<PickupRequestsGridProps> = ({
   onSortChange,
   onExport,
   onEscalate,
+  onManifestClick,
 }) => {
   const sorted = useMemo(() => sortRows(rows, sort), [rows, sort]);
+
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [rows, sort]);
+
+  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE) || 1;
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sorted.slice(start, start + ITEMS_PER_PAGE);
+  }, [sorted, currentPage]);
 
   const handleSort = (col: ColumnSpec) => {
     if (col.staticHeader) return;
@@ -164,7 +180,7 @@ export const PickupRequestsGrid: React.FC<PickupRequestsGridProps> = ({
                 </td>
               </tr>
             ) : (
-              sorted.map((r, idx) => {
+              paginated.map((r, idx) => {
                 const meta = PICKUP_STATUS_META[r.status];
                 return (
                   <tr key={r.manifestId}>
@@ -174,7 +190,16 @@ export const PickupRequestsGrid: React.FC<PickupRequestsGridProps> = ({
                       </div>
                     </td>
                     <td>
-                      <span className="ord-id" style={{ cursor: 'default' }}>{r.manifestId}</span>
+                      <a
+                        className="ord-id"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onManifestClick?.(r);
+                        }}
+                        href="#"
+                      >
+                        {r.manifestId}
+                      </a>
                     </td>
                     <td>
                       <div className="ord-date" style={{ fontWeight: 500, color: 'var(--ink)' }}>
@@ -228,12 +253,36 @@ export const PickupRequestsGrid: React.FC<PickupRequestsGridProps> = ({
 
       {/* Pagination footer — same recipe used by every other Orders grid */}
       <div className="ord-foot">
-        <span>Items per page</span>
+        <span>Items per page: {ITEMS_PER_PAGE}</span>
         <div className="ord-foot-pgw">
-          <button type="button" className="ord-foot-pgb icon" disabled>← Previous</button>
-          <button type="button" className="ord-foot-pgb on">1</button>
-          <button type="button" className="ord-foot-pgb">2</button>
-          <button type="button" className="ord-foot-pgb icon">Next →</button>
+          <button 
+            type="button" 
+            className="ord-foot-pgb icon" 
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          >
+            ← Previous
+          </button>
+          
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            <button 
+              key={page} 
+              type="button" 
+              className={`ord-foot-pgb ${currentPage === page ? 'on' : ''}`}
+              onClick={() => setCurrentPage(page)}
+            >
+              {page}
+            </button>
+          ))}
+
+          <button 
+            type="button" 
+            className="ord-foot-pgb icon" 
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          >
+            Next →
+          </button>
         </div>
       </div>
     </div>

@@ -73,34 +73,96 @@ export const NdrBulkUpdateModal: React.FC<NdrBulkUpdateModalProps> = ({
     e.preventDefault();
   };
 
-  /* ── Fake upload + result generation (mirrors prototype JS) ─── */
-  const startUpload = () => {
+  /* ── CSV Parsing + Backend API call ─── */
+  const startUpload = async () => {
     if (!file) return;
     setView('uploading');
-    setProgress(0);
-    intervalRef.current = setInterval(() => {
-      setProgress((p) => {
-        const step = Math.floor(Math.random() * 14) + 8;
-        const next = p + step;
-        if (next >= 100) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          finalise(file);
-          return 100;
+    setProgress(10);
+    
+    try {
+      const text = await file.text();
+      // Basic CSV parsing
+      const rows = text.split('\n').map(row => row.split(','));
+      if (rows.length < 2) throw new Error('Empty CSV');
+      
+      const header = rows[0].map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+      const orderIdIndex = header.findIndex(h => h.includes('order id') || h === 'id' || h.includes('awb'));
+      const actionIndex = header.findIndex(h => h.includes('seller action') || h.includes('action'));
+      const remarkIndex = header.findIndex(h => h.includes('seller remark') || h.includes('remark'));
+      const phoneIndex = header.findIndex(h => h === 'phone' || h.includes('mobile') || h.includes('contact'));
+      const addressIndex = header.findIndex(h => h.includes('address'));
+      
+      const { ndrApi } = await import('../../../services/ndrApi');
+      
+      let processedCount = 0;
+      let errorCount = 0;
+      let totalValidRows = 0;
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i].length > 0 && rows[i][0].trim()) {
+           totalValidRows++;
+           const idCol = orderIdIndex !== -1 ? orderIdIndex : 0; // fallback to first col
+           const val = rows[i][idCol]?.trim()?.replace(/^"|"$/g, '');
+           
+           if (!val) {
+             errorCount++;
+             continue;
+           }
+           
+           const actionVal = actionIndex !== -1 ? rows[i][actionIndex]?.trim()?.replace(/^"|"$/g, '') : '';
+           const remarkVal = remarkIndex !== -1 ? rows[i][remarkIndex]?.trim()?.replace(/^"|"$/g, '') : 'Bulk update via CSV';
+           const phoneVal = phoneIndex !== -1 ? rows[i][phoneIndex]?.trim()?.replace(/^"|"$/g, '') : '';
+           const addressVal = addressIndex !== -1 ? rows[i][addressIndex]?.trim()?.replace(/^"|"$/g, '') : '';
+           
+           // If phone is changed from default N/A, we implicitly consider it an update if no explicit action
+           const finalAction = actionVal || (phoneVal && phoneVal !== 'N/A' ? 'update_phone' : 're-attempt');
+           
+           const payload: any = {
+             id: [val],
+             action: finalAction,
+             remark: remarkVal || 'Bulk update via CSV'
+           };
+           
+           if (phoneVal && phoneVal !== 'N/A') {
+             payload.customer_mobile = phoneVal;
+             payload.phone = phoneVal; // send both to cover backend schemas
+           }
+           
+           if (addressVal && addressVal !== 'N/A') {
+             payload.delivery_address = addressVal;
+             payload.address = addressVal;
+           }
+           
+           const success = await ndrApi.bulkUpdateNdr(payload);
+           if (success) {
+             processedCount++;
+           } else {
+             errorCount++;
+           }
+           
+           setProgress(10 + Math.floor((i / rows.length) * 85));
         }
-        return next;
-      });
-    }, 160);
+      }
+      
+      setProgress(100);
+      
+      // Artificial small delay so user sees 100%
+      setTimeout(() => {
+         finalise(file, totalValidRows, processedCount, errorCount);
+      }, 400);
+
+    } catch (e) {
+      console.error('CSV processing failed', e);
+      setProgress(100);
+      setTimeout(() => finalise(file, 0, 0, 1), 400);
+    }
   };
 
-  const finalise = (f: File) => {
-    const total = Math.floor(Math.random() * 30) + 15;
-    const errors = Math.floor(Math.random() * 3);
-    const skipped = Math.floor(Math.random() * 4);
-    const processed = Math.max(0, total - errors - skipped);
+  const finalise = (f: File, total: number, processed: number, errors: number) => {
     const s: BulkUpdateSummary = {
       total,
       processed,
-      skipped,
+      skipped: Math.max(0, total - processed - errors),
       errors,
       filename: f.name,
     };

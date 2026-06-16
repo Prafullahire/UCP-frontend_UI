@@ -119,7 +119,7 @@ export const useReportsStore = create<ReportsStoreState>((set, get) => ({
 
   showToast: (message) => {
     // Clear previous toast timer if any
-    const toast = get().toast;
+    // const toast = get().toast;
     set({ toast: { message, visible: true } });
   },
 

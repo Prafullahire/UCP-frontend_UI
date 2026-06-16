@@ -20,6 +20,7 @@ import {
   IneligibleBlock,
   NotFoundBlock,
 } from './AwbResultBlocks';
+import { supportApi } from '../../../services/supportApi';
 
 interface CreateTicketDrawerProps {
   onClose: () => void;
@@ -105,6 +106,8 @@ export const CreateTicketDrawer: React.FC<CreateTicketDrawerProps> = ({
   const [remark, setRemark] = useState('');
   const [callbackRemark, setCallbackRemark] = useState('');
   const [awbOutcome, setAwbOutcome] = useState<AwbValidationOutcome>({ kind: 'idle' });
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   /* Update Contact / Address Change shared state */
   const [prevInfoOpen, setPrevInfoOpen] = useState(false);
@@ -122,6 +125,7 @@ export const CreateTicketDrawer: React.FC<CreateTicketDrawerProps> = ({
     setRemark('');
     setCallbackRemark('');
     setAwbOutcome({ kind: 'idle' });
+    setFile(null);
     setPrevInfoOpen(false);
     setPincode('');
     setCity('');
@@ -197,11 +201,30 @@ export const CreateTicketDrawer: React.FC<CreateTicketDrawerProps> = ({
     return isAwbValid && remark.trim().length > 0;
   })();
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!canSubmit) return;
     const record = eligibleRecord;
-    const newId = `TK-${4892300 + Math.floor(Math.random() * 99)}`;
-    const dateStr = '17 May 2026';
+    
+    showToast('Creating ticket...');
+    const payload = {
+      type: category === 'Tech Related Issues' ? 'tech' : category === 'Billing Related Issues' ? 'billing' : 'shipment',
+      category,
+      issue_type: issueCategory || category,
+      issue: requestType || complaintType || rtoSubtype || category,
+      subject: requestType || complaintType || rtoSubtype || category,
+      sub_category: issueCategory,
+      request_type: requestType,
+      complaint_type: complaintType,
+      rto_subtype: rtoSubtype,
+      remarks: remark,
+      awb_no: record?.awb || '',
+      file: file,
+    };
+    
+    const res = await supportApi.createTicket(payload);
+    
+    const newId = res?.ticket_id || `TK-${4892300 + Math.floor(Math.random() * 99)}`;
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const now = new Date();
     let hh = now.getHours();
     const mm = now.getMinutes();
@@ -222,7 +245,7 @@ export const CreateTicketDrawer: React.FC<CreateTicketDrawerProps> = ({
       isNew: true,
     };
     onCreated(ticket);
-    showToast(`✓ Ticket ${newId} created`);
+    showToast(`✓ Ticket ${newId} created successfully!`);
     reset();
   };
 
@@ -499,9 +522,42 @@ export const CreateTicketDrawer: React.FC<CreateTicketDrawerProps> = ({
   const renderUpload = () => (
     <div className="sup-mf">
       <div className="sup-ml">Attach File / Image <span className="sup-ml-hint">(optional)</span></div>
-      <div className="uz" onClick={() => showToast('📎 File picker opened')}>
-        <div className="uz-t">Click to attach or drag &amp; drop</div>
-        <div className="uz-s">Upload limit: 5 MB · JPG, PNG, PDF, XLSX</div>
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        accept="image/*,.csv,.xlsx,.xls,.pdf"
+        onChange={(e) => {
+          if (e.target.files && e.target.files[0]) {
+            setFile(e.target.files[0]);
+            showToast(`📎 Attached ${e.target.files[0].name}`);
+          }
+        }}
+      />
+      <div className="uz" onClick={() => fileInputRef.current?.click()} style={file ? { borderColor: 'var(--primary)', background: 'var(--s2)' } : undefined}>
+        {file ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', width: '100%' }}>
+            <span style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+              {file.name}
+            </span>
+            <span
+              style={{ fontSize: 18, color: 'var(--ink3)', cursor: 'pointer', padding: '0 5px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+            >
+              ×
+            </span>
+          </div>
+        ) : (
+          <>
+            <div className="uz-t">Click to attach or drag &amp; drop</div>
+            <div className="uz-s">Upload limit: 5 MB · JPG, PNG, PDF, CSV, XLSX</div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -231,12 +231,11 @@ export interface PendingKpis {
 
 export function computePendingKpis(orders: Order[]): PendingKpis {
   return {
-    totalValue:           orders.reduce((sum, o) => sum + o.payment.amount, 0) +
-                          /* pad so the demo matches the screenshot's ₹45,000 */ 36300,
-    orderCount:           orders.length + 10,
-    waitingToShip:        14,
-    needAttention:        orders.filter((o) => o.needsAttention).length + 6,
+    totalValue:           orders.reduce((sum, o) => sum + o.payment.amount, 0),
+    orderCount:           orders.length,
+    waitingToShip:        orders.length,
+    needAttention:        orders.filter((o) => o.needsAttention).length,
     attentionSittingHours: 24,
-    incomplete:           orders.filter((o) => o.incomplete).length + 1,
+    incomplete:           orders.filter((o) => o.incomplete).length,
   };
 }

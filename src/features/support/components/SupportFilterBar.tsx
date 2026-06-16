@@ -135,7 +135,7 @@ export const SupportFilterBar: React.FC<SupportFilterBarProps> = ({
   ];
 
   return (
-    <div className="sup-fbar">
+      <div className="sup-fbar">
       <div className="fb-lbl">Filters</div>
       <div className="fdiv" />
 
@@ -161,6 +161,19 @@ export const SupportFilterBar: React.FC<SupportFilterBarProps> = ({
         searchable
         onPick={(id) => onChange({ ...state, status: id })}
       />
+
+      {(state.subCategory || state.status || state.sort !== 'new' || state.dateRange !== 'last30') && (
+        <button
+          type="button"
+          onClick={() => onChange({ dateRange: 'last30', subCategory: null, status: null, sort: 'new' })}
+          style={{
+            background: 'none', border: 'none', color: 'var(--red)', fontSize: '13px',
+            fontWeight: 600, cursor: 'pointer', padding: '0 8px', textDecoration: 'underline'
+          }}
+        >
+          Clear Filters
+        </button>
+      )}
 
       <div className="sup-fc-r">
         <DropdownChip

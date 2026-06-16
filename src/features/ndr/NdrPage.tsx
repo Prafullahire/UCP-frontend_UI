@@ -19,7 +19,7 @@ import NdrUpdateDetailsModal, {
 import NdrBulkUpdateModal, {
   type BulkUpdateSummary,
 } from './components/NdrBulkUpdateModal';
-import { NDR_KPI_COUNTS, NDR_RECORDS } from './data/ndrData';
+import { ndrApi } from '../../services/ndrApi';
 import type { NdrKpiBucket, NdrRecord } from './types';
 
 const RefreshIcon = (
@@ -77,9 +77,37 @@ export const NdrPage: React.FC = () => {
   const [updateDetailsFor, setUpdateDetailsFor] = useState<NdrRecord | null>(null);
   const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
 
+  const [records, setRecords] = useState<NdrRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchRecords = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await ndrApi.fetchNdrList(filters);
+      setRecords(data);
+    } catch (err) {
+      console.error('Failed to fetch NDR data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters]);
+
+  React.useEffect(() => {
+    fetchRecords();
+  }, [fetchRecords]);
+
+  const kpiCounts = useMemo(() => {
+    return {
+      all: records.length,
+      critical: records.filter(r => r.priority === 'critical').length,
+      seller: records.filter(r => r.priority === 'seller').length,
+      none: records.filter(r => r.priority === 'none').length,
+    };
+  }, [records]);
+
   /* ─── Derived data: apply KPI bucket + every active filter ─── */
   const filteredRecords = useMemo<NdrRecord[]>(() => {
-    let list = NDR_RECORDS;
+    let list = records;
 
     if (activeBucket !== 'all') {
       list = list.filter((r) => r.priority === activeBucket);
@@ -105,7 +133,7 @@ export const NdrPage: React.FC = () => {
       list = list.filter((r) => r.channel === filters.channel);
     }
     return list;
-  }, [activeBucket, filters]);
+  }, [records, activeBucket, filters]);
 
   /* ─── Selection helpers ──────────────────────────────────── */
   const toggleSelect = (id: string) => {
@@ -155,24 +183,59 @@ export const NdrPage: React.FC = () => {
     showToast(`RTO initiated for ${r.orderId}`);
   const handleOrderClick = (r: NdrRecord) => setViewDetailsFor(r);
 
+  const handleExport = () => {
+    if (filteredRecords.length === 0) {
+      showToast('No records to export');
+      return;
+    }
+    showToast('Preparing export...');
+    const headers = ['Order ID', 'Date', 'Customer Name', 'Phone', 'Address', 'Reason', 'Priority', 'Payment Mode', 'Attempts', 'Transport Mode', 'Seller Action', 'Seller Remarks'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredRecords.map(r => [
+        r.orderId,
+        `"${r.attemptDate}"`,
+        `"${r.customerName}"`,
+        r.customerPhone,
+        `"${r.deliveryAddress.replace(/"/g, '""')}"`,
+        `"${r.reason}"`,
+        r.priority,
+        r.paymentMode,
+        r.attemptCount,
+        r.transportMode,
+        '', // Seller Action blank for user to fill
+        ''  // Seller Remarks blank for user to fill
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `ndr_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`✓ Exported ${filteredRecords.length} records successfully`);
+  };
+
   /* ─── Modal callbacks ────────────────────────────────────── */
   const confirmReattempt = (p: ReattemptPayload) => {
-    const r = NDR_RECORDS.find((x) => x.id === p.recordId);
+    const r = records.find((x) => x.id === p.recordId);
     setReattemptFor(null);
     showToast(
-      `✓ Re-attempt scheduled for ${r?.orderId ?? p.recordId} on ${p.date}${
-        p.priority ? ' · Priority flagged' : ''
+      `✓ Re-attempt scheduled for ${r?.orderId ?? p.recordId} on ${p.date}${p.priority ? ' · Priority flagged' : ''
       }`,
     );
   };
   const confirmUpdateDetails = (p: UpdateDetailsPayload) => {
-    const r = NDR_RECORDS.find((x) => x.id === p.recordId);
+    const r = records.find((x) => x.id === p.recordId);
     setUpdateDetailsFor(null);
     showToast(`✓ Details updated and re-attempt confirmed for ${r?.orderId ?? p.recordId}`);
   };
 
   const visibleCount = filteredRecords.length;
-  const totalForBucket = NDR_KPI_COUNTS[activeBucket];
+  const totalForBucket = kpiCounts[activeBucket];
   const showingLabel = hasAnyNdrFilter(filters)
     ? `${visibleCount} NDR records matching your filters`
     : `${totalForBucket} NDR records for last 30 days`;
@@ -190,12 +253,15 @@ export const NdrPage: React.FC = () => {
         </div>
         <div className="ord-ph-r">
           <span className="ndr-ph-meta">
-            {NDR_KPI_COUNTS.all} Orders for Last 30 days
+            {kpiCounts.all} Orders for Last 30 days
           </span>
           <button
             type="button"
             className="ord-cta ord-cta-s"
-            onClick={() => showToast('🔄 Refreshing NDR list…')}
+            onClick={() => {
+              showToast('🔄 Refreshing NDR list…');
+              fetchRecords();
+            }}
           >
             {RefreshIcon}
             Refresh
@@ -205,7 +271,7 @@ export const NdrPage: React.FC = () => {
 
       {/* ── KPI cards ────────────────────────────────────────── */}
       <NdrKpiStrip
-        counts={NDR_KPI_COUNTS}
+        counts={kpiCounts}
         active={activeBucket}
         onSelect={handleKpiSelect}
       />
@@ -221,7 +287,7 @@ export const NdrPage: React.FC = () => {
           <button
             type="button"
             className="ord-cta ord-cta-s ndr-cta-sm"
-            onClick={() => showToast('Exporting NDR data…')}
+            onClick={handleExport}
           >
             {ExportIcon}
             Export
@@ -250,20 +316,24 @@ export const NdrPage: React.FC = () => {
       </div>
 
       {/* ── Records table ────────────────────────────────────── */}
-      <NdrTable
-        records={filteredRecords}
-        selected={selected}
-        onToggleSelect={toggleSelect}
-        onToggleSelectAll={toggleSelectAll}
-        expandedId={expandedId}
-        onToggleExpand={toggleExpand}
-        onOrderClick={handleOrderClick}
-        onReattempt={handleReattempt}
-        onUpdateDetails={handleUpdateDetails}
-        onHold={handleHold}
-        onRto={handleRto}
-        onViewDetails={handleViewDetails}
-      />
+      {isLoading ? (
+        <div style={{ padding: '2rem', textAlign: 'center' }}>Loading NDR data...</div>
+      ) : (
+        <NdrTable
+          records={filteredRecords}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={toggleSelectAll}
+          expandedId={expandedId}
+          onToggleExpand={toggleExpand}
+          onOrderClick={handleOrderClick}
+          onReattempt={handleReattempt}
+          onUpdateDetails={handleUpdateDetails}
+          onHold={handleHold}
+          onRto={handleRto}
+          onViewDetails={handleViewDetails}
+        />
+      )}
 
       {/* ── Overlays ────────────────────────────────────────── */}
       {viewDetailsFor && (

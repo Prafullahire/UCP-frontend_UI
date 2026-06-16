@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import RowActionsMenu from './RowActionsMenu';
 import { SHIPMENT_STATUS_META } from '../data/shipmentsData';
 import type { Shipment, OrderTabId } from '../types';
@@ -292,7 +292,14 @@ const StatusCell: React.FC<{ s: Shipment; tab: ShipmentsGridProps['tab'] }> = ({
       </span>
     );
   }
-  const meta = SHIPMENT_STATUS_META[s.status];
+  const meta = SHIPMENT_STATUS_META[s.status as keyof typeof SHIPMENT_STATUS_META];
+  if (!meta) {
+    return (
+      <span className={`ord-status grey`}>
+        {String(s.status).toUpperCase()}
+      </span>
+    );
+  }
   return (
     <span className={`ord-status ${meta.variant}`}>
       {meta.label.toUpperCase()}
@@ -323,6 +330,19 @@ export const ShipmentsGrid: React.FC<ShipmentsGridProps> = ({
 }) => {
   const columns = COLUMNS_BY_TAB[tab];
   const sorted = useMemo(() => sortShipments(shipments, sort), [shipments, sort]);
+
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [shipments, sort]);
+
+  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE) || 1;
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sorted.slice(start, start + ITEMS_PER_PAGE);
+  }, [sorted, currentPage]);
 
   const allSelected = shipments.length > 0 && shipments.every((s) => selected.has(s.id));
   const partialSelected = !allSelected && shipments.some((s) => selected.has(s.id));
@@ -446,7 +466,7 @@ export const ShipmentsGrid: React.FC<ShipmentsGridProps> = ({
             )}
           </thead>
           <tbody>
-            {sorted.map((s) => {
+            {paginated.map((s) => {
               const isSelected = selected.has(s.id);
               return (
                 <tr key={s.id} className={isSelected ? 'selected' : undefined}>
@@ -522,12 +542,36 @@ export const ShipmentsGrid: React.FC<ShipmentsGridProps> = ({
       })()}
 
       <div className="ord-foot">
-        <span>Items per page</span>
+        <span>Items per page: {ITEMS_PER_PAGE}</span>
         <div className="ord-foot-pgw">
-          <button type="button" className="ord-foot-pgb icon" disabled>← Previous</button>
-          <button type="button" className="ord-foot-pgb on">1</button>
-          <button type="button" className="ord-foot-pgb">2</button>
-          <button type="button" className="ord-foot-pgb icon">Next →</button>
+          <button 
+            type="button" 
+            className="ord-foot-pgb icon" 
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          >
+            ← Previous
+          </button>
+          
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            <button 
+              key={page} 
+              type="button" 
+              className={`ord-foot-pgb ${currentPage === page ? 'on' : ''}`}
+              onClick={() => setCurrentPage(page)}
+            >
+              {page}
+            </button>
+          ))}
+
+          <button 
+            type="button" 
+            className="ord-foot-pgb icon" 
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          >
+            Next →
+          </button>
         </div>
       </div>
     </div>

@@ -419,59 +419,59 @@ const formatRupees = (n: number) =>
 
 export function computeReadyToShipKpis(rows: Shipment[]) {
   return {
-    readyToShip:      rows.length + 15,
-    pickupUnscheduled: 12,
-    stillWaiting:      rows.filter((r) => r.needsAttention).length + 7,
+    readyToShip:       rows.length,
+    pickupUnscheduled: rows.length, // approximation
+    stillWaiting:      rows.filter((r) => r.needsAttention).length,
     waitingHours:      24,
   };
 }
 
 export function computeReadyToPickupKpis(rows: Shipment[]) {
   return {
-    scheduledForPickup: rows.length + 15,
-    pickupReattempt:    rows.filter((r) => r.status === 'pickup-reattempt' || r.status === 'awaiting-scan').length + 3,
-    awaitingPickup:     rows.filter((r) => r.needsAttention).length + 2,
+    scheduledForPickup: rows.length,
+    pickupReattempt:    rows.filter((r) => r.status === 'pickup-reattempt' || r.status === 'awaiting-scan').length,
+    awaitingPickup:     rows.filter((r) => r.needsAttention).length,
     waitingHours:       24,
   };
 }
 
 export function computeInTransitKpis(rows: Shipment[]) {
   return {
-    totalInTransit: rows.length + 2,
-    slowInMovement: rows.filter((r) => r.needsAttention).length + 7,
+    totalInTransit: rows.length,
+    slowInMovement: rows.filter((r) => r.needsAttention).length,
     waitingHours:   24,
-    reattempted:    4,
-    outForDelivery: rows.filter((r) => r.status === 'out-for-delivery').length + 3,
+    reattempted:    0,
+    outForDelivery: rows.filter((r) => r.status === 'out-for-delivery').length,
   };
 }
 
 export function computeDeliveredKpis(rows: Shipment[]) {
   return {
-    totalValue:        rows.reduce((s, r) => s + r.payment.amount, 0) + (45000 - rows.length * 1450),
-    totalCount:        rows.length + 11,
-    firstAttempt:      rows.filter((r) => r.status === 'delivered').length + 4,
-    secondPlusAttempt: 5,
-    lateDelivery:      rows.filter((r) => r.status === 'failed').length + 7,
+    totalValue:        rows.reduce((s, r) => s + r.payment.amount, 0),
+    totalCount:        rows.length,
+    firstAttempt:      rows.filter((r) => r.status === 'delivered').length,
+    secondPlusAttempt: 0,
+    lateDelivery:      rows.filter((r) => r.status === 'failed').length,
   };
 }
 
 export function computeRtoKpis(rows: Shipment[]) {
   return {
-    rtoInTransit:  rows.filter((r) => r.status === 'rto-in-transit').length + 5,
-    rtoDelivered:  rows.filter((r) => r.status === 'rto-delivered' || r.status === 'rto-completed').length + 4,
-    rtoInitiated:  rows.filter((r) => r.status === 'rto-initiated').length + 8,
-    rtoCompleted:  rows.filter((r) => r.status === 'rto-completed').length + 3,
+    rtoInTransit:  rows.filter((r) => r.status === 'rto-in-transit').length,
+    rtoDelivered:  rows.filter((r) => r.status === 'rto-delivered' || r.status === 'rto-completed').length,
+    rtoInitiated:  rows.filter((r) => r.status === 'rto-initiated').length,
+    rtoCompleted:  rows.filter((r) => r.status === 'rto-completed').length,
   };
 }
 
 export function computeAllShipmentKpis(rows: Shipment[]) {
   const inTransitStatuses: ShipmentStatus[] = ['picked-up', 'in-transit', 'out-for-delivery'];
   return {
-    totalShipments:     rows.length + 32,
-    totalValue:         rows.reduce((s, r) => s + r.payment.amount, 0) + 120000,
-    inTransit:          rows.filter((r) => inTransitStatuses.includes(r.status)).length + 12,
-    delivered:          rows.filter((r) => r.status === 'delivered').length + 18,
-    rto:                rows.filter((r) => r.status.startsWith('rto-')).length + 5,
+    totalShipments:     rows.length,
+    totalValue:         rows.reduce((s, r) => s + r.payment.amount, 0),
+    inTransit:          rows.filter((r) => inTransitStatuses.includes(r.status)).length,
+    delivered:          rows.filter((r) => r.status === 'delivered').length,
+    rto:                rows.filter((r) => r.status.startsWith('rto-')).length,
   };
 }
 

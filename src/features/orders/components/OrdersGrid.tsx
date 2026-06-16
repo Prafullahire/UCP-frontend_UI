@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import RowActionsMenu from './RowActionsMenu';
 import type { Order } from '../types';
 
@@ -104,6 +104,19 @@ export const OrdersGrid: React.FC<OrdersGridProps> = ({
 }) => {
   const sorted = useMemo(() => sortOrders(orders, sort), [orders, sort]);
 
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [orders, sort]);
+
+  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE) || 1;
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sorted.slice(start, start + ITEMS_PER_PAGE);
+  }, [sorted, currentPage]);
+
   const allSelected = orders.length > 0 && orders.every((o) => selected.has(o.id));
   const partialSelected = !allSelected && orders.some((o) => selected.has(o.id));
 
@@ -198,7 +211,7 @@ export const OrdersGrid: React.FC<OrdersGridProps> = ({
             )}
           </thead>
           <tbody>
-            {sorted.map((o) => {
+            {paginated.map((o) => {
               const isSelected = selected.has(o.id);
               return (
                 <tr key={o.id} className={isSelected ? 'selected' : undefined}>
@@ -332,12 +345,36 @@ export const OrdersGrid: React.FC<OrdersGridProps> = ({
       })()}
 
       <div className="ord-foot">
-        <span>Items per page</span>
+        <span>Items per page: {ITEMS_PER_PAGE}</span>
         <div className="ord-foot-pgw">
-          <button type="button" className="ord-foot-pgb icon" disabled>← Previous</button>
-          <button type="button" className="ord-foot-pgb on">1</button>
-          <button type="button" className="ord-foot-pgb">2</button>
-          <button type="button" className="ord-foot-pgb icon">Next →</button>
+          <button 
+            type="button" 
+            className="ord-foot-pgb icon" 
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          >
+            ← Previous
+          </button>
+          
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            <button 
+              key={page} 
+              type="button" 
+              className={`ord-foot-pgb ${currentPage === page ? 'on' : ''}`}
+              onClick={() => setCurrentPage(page)}
+            >
+              {page}
+            </button>
+          ))}
+
+          <button 
+            type="button" 
+            className="ord-foot-pgb icon" 
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          >
+            Next →
+          </button>
         </div>
       </div>
     </div>

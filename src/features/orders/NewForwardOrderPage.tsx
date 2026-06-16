@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
+import { ordersApi } from '../../services/ordersApi';
 import PickupDrawer from './components/PickupDrawer';
 import PackageDrawer from './components/PackageDrawer';
+import CustomerDrawer from './components/CustomerDrawer';
 import SavedAddressSelect, { type SavedAddressOption } from './components/SavedAddressSelect';
 import ProductSearchSelect from './components/ProductSearchSelect';
 import {
@@ -124,10 +126,41 @@ export const NewForwardOrderPage: React.FC = () => {
   /* Drawer state — { mode, id? } open when not null. */
   const [pickupDrawer, setPickupDrawer] = useState<{ mode: 'create' | 'edit'; id?: string } | null>(null);
 
-  /* ─── Customer ───────────────────────────────────────────────
-     The customer list is read-only for now — a future "Add Customer"
-     drawer will lift this to local state (mirroring the pickup flow). */
-  const customers: SavedCustomer[] = SAVED_CUSTOMERS;
+  // Load actual warehouses on mount
+  useEffect(() => {
+    import('../../services/warehouseApi').then(({ warehouseApi }) => {
+      warehouseApi.getWarehouses().then((whList: any[]) => {
+        if (whList && whList.length > 0) {
+          const mapped: SavedPickup[] = whList.map(wh => ({
+            id: String(wh.id || wh.warehouse_id),
+            name: wh.name || wh.warehouse_name || '',
+            tag: 'Warehouse',
+            address: wh.address_1 || wh.address || '',
+            city: wh.city || '',
+            state: wh.state || '',
+            pincode: wh.zip || wh.pincode || '',
+            country: 'India',
+            contactPhone: wh.phone || '',
+            contactPersonName: wh.contact_name || '',
+            email: wh.email || '',
+            supportPhone: wh.phone || '',
+            isVerified: true,
+            isPrimary: false,
+            hideWarehouseAddress: false,
+            hideWarehousePhone: false,
+            hideCustomerPhone: false,
+            hideProductDetails: false,
+            returnSameAsPickup: true,
+          }));
+          setPickups(mapped);
+          if (mapped.length > 0) setPickupId(mapped[0].id);
+        }
+      });
+    });
+  }, []);
+
+  /* ─── Customer ─────────────────────────────────────────────── */
+  const [customers, setCustomers] = useState<SavedCustomer[]>(SAVED_CUSTOMERS);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const selectedCustomer = customers.find((c) => c.id === customerId) ?? null;
 
@@ -177,6 +210,7 @@ export const NewForwardOrderPage: React.FC = () => {
 
   /* Drawer state for the Package drawer */
   const [packageDrawer, setPackageDrawer] = useState<{ mode: 'create' | 'edit'; id?: string } | null>(null);
+  const [customerDrawer, setCustomerDrawer] = useState<{ mode: 'create' | 'edit'; id?: string } | null>(null);
 
   const volumetricWt = useMemo(() => {
     const l = Number(length), b = Number(breadth), h = Number(height);
@@ -188,6 +222,9 @@ export const NewForwardOrderPage: React.FC = () => {
 
   /* ─── Payment ────────────────────────────────────────────── */
   const [orderId, setOrderId] = useState<string>(genOrderId());
+  const [dbOrderId, setDbOrderId] = useState<string | null>(null);
+  const [isCreated, setIsCreated] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'PREPAID' | 'COD'>('COD');
   const [collectable, setCollectable] = useState<string>('');
 
@@ -203,7 +240,8 @@ export const NewForwardOrderPage: React.FC = () => {
 
   /* ─── Handlers ───────────────────────────────────────────── */
 
-  const handlePickupSave = (next: SavedPickup) => {
+  const handlePickupSave = async (next: SavedPickup) => {
+    // 1. Instantly update the UI so the user sees it immediately
     setPickups((prev) => {
       const i = prev.findIndex((p) => p.id === next.id);
       if (i >= 0) {
@@ -216,6 +254,60 @@ export const NewForwardOrderPage: React.FC = () => {
     setPickupId(next.id);
     setPickupDrawer(null);
     showToast(`✓ Pickup "${next.name}" ${pickupDrawer?.mode === 'edit' ? 'updated' : 'added'}`);
+
+    // 2. Fire the API call in the background to save it permanently!
+    try {
+      const { warehouseApi } = await import('../../services/warehouseApi');
+      const payload = {
+        name: next.name,
+        contact_name: next.contactPersonName || next.name,
+        email: next.email || 'warehouse@test.com',
+        phone: next.contactPhone.replace('+91 ', ''),
+        address_1: next.address,
+        address_2: "",
+        city: next.city,
+        state: next.state,
+        zip: next.pincode,
+        password: "auto"
+      };
+      await warehouseApi.createWarehouse(payload);
+      
+      // 3. Re-sync the latest accurate list from the backend
+      const whList = await warehouseApi.getWarehouses();
+      if (whList && whList.length > 0) {
+        const mapped: SavedPickup[] = whList.map((wh: any) => ({
+          id: String(wh.id || wh.warehouse_id),
+          name: wh.name || wh.warehouse_name || '',
+          tag: 'Warehouse',
+          address: wh.address_1 || wh.address || '',
+          city: wh.city || '',
+          state: wh.state || '',
+          pincode: wh.zip || wh.pincode || '',
+          country: 'India',
+          contactPhone: wh.phone || '',
+          contactPersonName: wh.contact_name || '',
+          email: wh.email || '',
+          supportPhone: wh.phone || '',
+          isVerified: true,
+          isPrimary: false,
+          hideWarehouseAddress: false,
+          hideWarehousePhone: false,
+          hideCustomerPhone: false,
+          hideProductDetails: false,
+          returnSameAsPickup: true,
+        }));
+        setPickups(mapped);
+        
+        // Find the newly created warehouse to keep it selected
+        // We match by name since the backend assigns a new integer ID
+        const newlyCreated = mapped.find(m => m.name.toLowerCase() === next.name.toLowerCase());
+        if (newlyCreated) {
+           setPickupId(newlyCreated.id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to save pickup to backend", err);
+    }
   };
 
   const handlePackageSave = (next: SavedPackage) => {
@@ -238,6 +330,21 @@ export const NewForwardOrderPage: React.FC = () => {
     setHeight(String(next.height));
     setPackageDrawer(null);
     showToast(`✓ Package "${next.name}" ${packageDrawer?.mode === 'edit' ? 'updated' : 'added'}`);
+  };
+
+  const handleCustomerSave = (next: SavedCustomer) => {
+    setCustomers((prev) => {
+      const i = prev.findIndex((c) => c.id === next.id);
+      if (i >= 0) {
+        const copy = prev.slice();
+        copy[i] = next;
+        return copy;
+      }
+      return [...prev, next];
+    });
+    setCustomerId(next.id);
+    setCustomerDrawer(null);
+    showToast(`✓ Customer "${next.name}" ${customerDrawer?.mode === 'edit' ? 'updated' : 'added'}`);
   };
 
   const onPickupChange = (id: string) => {
@@ -290,43 +397,135 @@ export const NewForwardOrderPage: React.FC = () => {
     Number(physicalWt) > 0 &&
     !!orderId.trim();
 
+  const saveOrder = async () => {
+    if (isCreated) return { success: true };
+    if (isSubmitting) return { success: false, message: 'Already submitting' };
+    if (!selectedPickup || !selectedCustomer) return { success: false, message: 'Missing pickup or customer' };
+    
+    setIsSubmitting(true);
+    const randomNumber = Math.floor(Math.random() * 10000000) + 1;
+    const payload = {
+      order_id: orderId,
+      order_number: orderId,
+      order_unique_id: randomNumber,
+      order_type: 'ecom',
+      order_payment_type: paymentMode.toLowerCase(),
+      // Shipping
+      shipping_fname: selectedCustomer.name.split(' ')[0] || 'Customer',
+      shipping_lname: selectedCustomer.name.split(' ').slice(1).join(' ') || '',
+      shipping_address: selectedCustomer.address || 'Address',
+      shipping_address_2: '',
+      shipping_city: selectedCustomer.city || 'City',
+      shipping_state: selectedCustomer.state || 'State',
+      shipping_country: 'INDIA',
+      shipping_zip: selectedCustomer.pincode,
+      shipping_phone: selectedCustomer.phone?.replace(/\D/g, '').slice(-10),
+      // Billing
+      billing_fname: selectedCustomer.name.split(' ')[0] || 'Customer',
+      billing_lname: selectedCustomer.name.split(' ').slice(1).join(' ') || '',
+      billing_address: selectedCustomer.address || 'Address',
+      billing_address_2: '',
+      billing_city: selectedCustomer.city || 'City',
+      billing_state: selectedCustomer.state || 'State',
+      billing_country: 'INDIA',
+      billing_zip: selectedCustomer.pincode,
+      billing_phone: selectedCustomer.phone?.replace(/\D/g, '').slice(-10),
+      // Package
+      package_weight: Number(physicalWt),
+      package_length: Number(length),
+      package_breadth: Number(breadth),
+      package_height: Number(height),
+      // Warehouse & Pincodes
+      warehouse_id: String(selectedPickup.id),
+      originpincodecheck: selectedPickup.pincode,
+      dispincode: selectedCustomer.pincode,
+      // Financials
+      order_amount: grandTotal,
+      collectable_amount: paymentMode === 'COD' ? Number(collectable) : 0,
+      shipping_charges: Number(shippingCharges) || 0,
+      cod_charges: paymentMode === 'COD' ? (Number(transactionCharges) || 0) : 0,
+      tax_amount: 0,
+      discount: Number(totalDiscountInput) || 0,
+      // Products
+      order_products: lines.map((l) => {
+        const p = productsById[l.productId];
+        return {
+          product_name: p?.name || 'Product',
+          product_sku: p?.sku || 'SKU',
+          product_price: p?.price || 0,
+          product_qty: l.qty,
+        };
+      })
+    };
+    const response = await ordersApi.createOrder(payload);
+    console.log("ORDER PAYLOAD", payload);
+    if (response.success) {
+      setIsCreated(true);
+      if (response.dbId) {
+        setDbOrderId(response.dbId);
+      }
+    } else {
+      setOrderId(genOrderId()); // Prevent resubmitting the same ID if the user clicks again
+    }
+    setIsSubmitting(false);
+    return response;
+  };
+
   /* "Create & Manifest Later" → creates the order and lands the user
      on the Pending Manifest success screen (lifecycle step 2). */
-  const handleCreateManifestLater = () => {
+  const handleCreateManifestLater = async () => {
     if (!canCreate) {
       showToast('Fill pickup, customer, product and package details to continue');
       return;
     }
-    showToast(`✓ Order ${orderId} created — pending manifest`);
-    setStep('pending-manifest');
+    const response = await saveOrder();
+    if (response.success) {
+      showToast(`✓ Order ${orderId} created — pending manifest`);
+      setStep('pending-manifest');
+    } else {
+      showToast(`❌ Failed to create order: ${response.message || 'Please try again.'}`);
+    }
   };
 
   /* "Create Order & Ship" → creates the order AND opens the shipment
      mode selector. From there the user picks a courier and clicks
      "Ship Now" to land on the AWB Assigned final state. */
-  const handleCreateAndShip = () => {
+  const handleCreateAndShip = async () => {
     if (!canCreate) {
       showToast('Fill pickup, customer, product and package details to continue');
       return;
     }
-    showToast(`✓ Order ${orderId} created — select a shipment mode`);
-    /* No pre-selected mode — the user explicitly ticks one on the
-       Select Shipment Mode screen before the "Ship Now" CTA enables. */
-    setSelectedModeId(null);
-    setStep('select-mode');
+    const response = await saveOrder();
+    if (response.success) {
+      showToast(`✓ Order ${orderId} created — select a shipment mode`);
+      setSelectedModeId(null);
+      setStep('select-mode');
+    } else {
+      showToast(`❌ Failed to create order: ${response.message || 'Please try again.'}`);
+    }
   };
 
   /* Finalize the shipment after a mode is picked. Generates a mock
      AWB number so the final screen has something concrete to render. */
-  const handleShipNow = () => {
+  const handleShipNow = async () => {
     if (!selectedModeId) {
       showToast('Pick a shipment mode to continue');
       return;
     }
-    const awb = genAwbNumber();
-    setAwbNumber(awb);
-    setStep('awb-assigned');
-    showToast(`✓ AWB ${awb} assigned`);
+    showToast('Shipping order...');
+    let idToShip = dbOrderId || orderId;
+    if (!dbOrderId) {
+        // orderApi.shipOrder will now internally look up the DB ID if only customer orderId is provided.
+    }
+    const success = await ordersApi.shipOrder(idToShip, selectedModeId, selectedPickup?.id || 0);
+    if (success) {
+      const awb = genAwbNumber();
+      setAwbNumber(awb);
+      setStep('awb-assigned');
+      showToast(`✓ Order ${orderId} shipped successfully`);
+    } else {
+      showToast('❌ Failed to ship order. Please try again.');
+    }
   };
 
   /* Used by the post-create screens to start a fresh order. Resets
@@ -345,6 +544,7 @@ export const NewForwardOrderPage: React.FC = () => {
     setCollectable('');
     setPaymentMode('COD');
     setOrderId(genOrderId());
+    setIsCreated(false);
     setSelectedModeId(null);
     setAwbNumber(null);
     setStep('compose');
@@ -421,6 +621,7 @@ export const NewForwardOrderPage: React.FC = () => {
               type="button"
               className="ord-cta ord-cta-s"
               onClick={handleCreateManifestLater}
+              disabled={isSubmitting}
             >
               Create &amp; Manifest Later
             </button>
@@ -428,6 +629,7 @@ export const NewForwardOrderPage: React.FC = () => {
               type="button"
               className="ord-cta ord-cta-p"
               onClick={handleCreateAndShip}
+              disabled={isSubmitting}
             >
               <ShipIcon /> Create Order &amp; Ship
             </button>
@@ -584,9 +786,7 @@ export const NewForwardOrderPage: React.FC = () => {
                   addNewLabel="Add new customer"
                   onChange={onCustomerChange}
                   onAddNew={() => {
-                    /* No customer drawer in scope — surface the gap clearly
-                       via toast so the wiring is honest. */
-                    showToast('+ Add Customer flow — coming next');
+                    setCustomerDrawer({ mode: 'create' });
                   }}
                 />
               </div>
@@ -598,8 +798,8 @@ export const NewForwardOrderPage: React.FC = () => {
                   phone={selectedCustomer.phone}
                   email={selectedCustomer.email}
                   verified={selectedCustomer.isVerified}
-                  onEdit={() => showToast(`Edit customer ${selectedCustomer.name} — coming next`)}
-                  onAddNew={() => showToast('+ Add Customer flow — coming next')}
+                  onEdit={() => setCustomerDrawer({ mode: 'edit', id: selectedCustomer.id })}
+                  onAddNew={() => setCustomerDrawer({ mode: 'create' })}
                 />
               )}
             </section>
@@ -942,6 +1142,19 @@ export const NewForwardOrderPage: React.FC = () => {
         />
       )}
 
+      {customerDrawer && (
+        <CustomerDrawer
+          mode={customerDrawer.mode}
+          customer={
+            customerDrawer.mode === 'edit'
+              ? customers.find((c) => c.id === customerDrawer.id)
+              : undefined
+          }
+          onClose={() => setCustomerDrawer(null)}
+          onSave={handleCustomerSave}
+        />
+      )}
+
       {toast && <Toast />}
     </div>
   );
@@ -959,7 +1172,8 @@ const ShipIcon: React.FC = () => (
 );
 
 function genOrderId(): string {
-  return `${Math.floor(100000 + Math.random() * 900000)}${Date.now().toString().slice(-6)}`;
+  // Generate a timestamp-based ID to ensure it is unique and fits in a 32-bit integer on the backend
+  return Math.floor(Date.now() / 1000).toString();
 }
 
 /* AWB pattern mimics the XB Sellportal format: "1XB" prefix + 11 digits. */
@@ -1136,9 +1350,7 @@ const SelectShipmentModeView: React.FC<SelectShipmentModeViewProps> = ({
   orderValue, paymentMode, chargeableWeight,
   modes, selectedModeId, onSelectMode,
 }) => {
-  /* Tab + sort state — both purely local to this view. The tab counts
-     come from the full `modes` list (so "Surface 1" stays accurate
-     even when the active tab filters the visible rows down to one). */
+  
   const [tab,     setTab]     = useState<ShipmentModeTab>('all');
   const [sortDir, setSortDir] = useState<ShipmentSortDir>('asc');
 

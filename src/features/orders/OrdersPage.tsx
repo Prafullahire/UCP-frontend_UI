@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
@@ -31,16 +31,9 @@ import type { SavedPickup } from './data/forwardOrderData';
 import {
   BULK_ACTIONS,
   DEFAULT_TAGS,
-  PENDING_ORDERS,
   computePendingKpis,
 } from './data/ordersData';
 import {
-  ALL_SHIPMENTS,
-  DELIVERED_SHIPMENTS,
-  IN_TRANSIT_SHIPMENTS,
-  READY_TO_PICKUP_SHIPMENTS,
-  READY_TO_SHIP_SHIPMENTS,
-  RTO_SHIPMENTS,
   computeAllShipmentKpis,
   computeDeliveredKpis,
   computeInTransitKpis,
@@ -49,8 +42,10 @@ import {
   computeRtoKpis,
   fmtRupees,
 } from './data/shipmentsData';
+import { ordersApi } from '../../services/ordersApi';
 import type { BulkAction } from './data/ordersData';
 import type { Order, OrderTabId, Shipment } from './types';
+import { generateInvoicePDF } from '../../utils/generateInvoice';
 
 interface TabSpec {
   id: OrderTabId;
@@ -58,13 +53,13 @@ interface TabSpec {
 }
 
 const TABS: TabSpec[] = [
-  { id: 'pending',         label: 'Pending' },
-  { id: 'ready-to-ship',   label: 'Ready to Ship' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'ready-to-ship', label: 'Ready to Ship' },
   { id: 'ready-to-pickup', label: 'Ready to Pickup' },
-  { id: 'in-transit',      label: 'In Transit' },
-  { id: 'delivered',       label: 'Delivered' },
-  { id: 'rto',             label: 'RTO' },
-  { id: 'all',             label: 'All' },
+  { id: 'in-transit', label: 'In Transit' },
+  { id: 'delivered', label: 'Delivered' },
+  { id: 'rto', label: 'RTO' },
+  { id: 'all', label: 'All' },
 ];
 
 /* Icons used in the actions group (download / bulk upload glyphs) */
@@ -81,34 +76,13 @@ const BulkUpdateIcon = (
   </svg>
 );
 
-/** Static per-shipment-tab dataset lookup. */
-const SHIPMENT_DATA: Record<Exclude<OrderTabId, 'pending'>, Shipment[]> = {
-  'ready-to-ship':   READY_TO_SHIP_SHIPMENTS,
-  'ready-to-pickup': READY_TO_PICKUP_SHIPMENTS,
-  'in-transit':      IN_TRANSIT_SHIPMENTS,
-  delivered:         DELIVERED_SHIPMENTS,
-  rto:               RTO_SHIPMENTS,
-  all:               ALL_SHIPMENTS,
-};
+const RefreshIcon = (
+  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M12 6A5 5 0 1 0 11 9.2" strokeLinecap="round" />
+    <path d="M12 1.5v4H8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
-/**
- * Top-level Orders page. Owns:
- *
- *  • Tab state (Pending tab + every Shipment lifecycle tab)
- *  • KPI bucket state (drives filtering when a KPI card is clicked)
- *  • Filter state (mirrored on the inline chips + the "All Filters" drawer)
- *  • Order list + selection + sort state for both grids
- *  • Modals: Add Tag, Cancel Order (single + bulk variants)
- *  • Toast notifications via the shared `useReportsStore`
- *
- * Layout (every tab):
- *
- *   Title + CTAs
- *   KPI cards
- *   Tabs
- *   [ Filter bar (auto width) ............ Bulk Upload · Download · Bulk Action ]
- *   Grid
- */
 export const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const showToast = useReportsStore((s) => s.showToast);
@@ -126,7 +100,15 @@ export const OrdersPage: React.FC = () => {
   const [shipmentBucket, setShipmentBucket] = useState<string>('all');
 
   /* ─── Orders + Shipment selection + sort ─────────────────── */
-  const [orders, setOrders] = useState<Order[]>(PENDING_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [shipmentsRecord, setShipmentsRecord] = useState<Record<string, Shipment[]>>({
+    'ready-to-ship': [],
+    'ready-to-pickup': [],
+    'in-transit': [],
+    delivered: [],
+    rto: [],
+    all: []
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /* `null` = default unsorted state — header arrows are hidden. */
   const [pendingSort, setPendingSort] = useState<SortState | null>(null);
@@ -145,9 +127,9 @@ export const OrdersPage: React.FC = () => {
      bulk operations (Ship, Print, Book Pickup, …) flow through
      `bulkConfirm` which renders the shared <BulkConfirmModal /> with
      action-specific copy. */
-  const [bulkPickupOpen,   setBulkPickupOpen]   = useState(false);
-  const [bulkPackageOpen,  setBulkPackageOpen]  = useState(false);
-  const [bulkPaymentOpen,  setBulkPaymentOpen]  = useState(false);
+  const [bulkPickupOpen, setBulkPickupOpen] = useState(false);
+  const [bulkPackageOpen, setBulkPackageOpen] = useState(false);
+  const [bulkPaymentOpen, setBulkPaymentOpen] = useState(false);
   const [bulkConfirm, setBulkConfirm] = useState<{
     actionId: string;
     title: string;
@@ -165,6 +147,21 @@ export const OrdersPage: React.FC = () => {
      read-only sections. */
   const [viewOrderFor, setViewOrderFor] = useState<Order | Shipment | null>(null);
 
+  /* ─── API Integration ────────────────────────────────────── */
+  const fetchData = React.useCallback(async () => {
+    if (activeTab === 'pending') {
+      const data = await ordersApi.fetchPendingOrders(filters);
+      setOrders(data);
+    } else {
+      const data = await ordersApi.fetchShipments(activeTab, filters);
+      setShipmentsRecord(prev => ({ ...prev, [activeTab]: data }));
+    }
+  }, [activeTab, filters]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   /* ─── Derived: filtered orders (Pending tab) ─────────────── */
   const filteredOrders = useMemo(() => {
     let list = orders;
@@ -181,7 +178,7 @@ export const OrdersPage: React.FC = () => {
       list = list.filter((o) => filters.pickupLocations.includes(o.pickupLocation));
     }
     if (filters.paymentMode) {
-      const wantMode = filters.paymentMode === 'cod' ? 'COD' : 'Prepaid';
+      const wantMode = filters.paymentMode.toLowerCase() === 'cod' ? 'COD' : 'Prepaid';
       list = list.filter((o) => o.payment.mode === wantMode);
     }
     if (filters.channels.length > 0) {
@@ -209,8 +206,8 @@ export const OrdersPage: React.FC = () => {
      Memoising the dataset lookup keeps the downstream `useMemo` deps
      referentially stable across renders. */
   const activeShipments: Shipment[] = useMemo(
-    () => (activeTab === 'pending' ? [] : SHIPMENT_DATA[activeTab]),
-    [activeTab],
+    () => (activeTab === 'pending' ? [] : shipmentsRecord[activeTab]),
+    [activeTab, shipmentsRecord],
   );
 
   const filteredShipments = useMemo(() => {
@@ -224,7 +221,7 @@ export const OrdersPage: React.FC = () => {
       list = list.filter((s) => filters.pickupLocations.includes(s.pickupLocation));
     }
     if (filters.paymentMode) {
-      const wantMode = filters.paymentMode === 'cod' ? 'COD' : 'Prepaid';
+      const wantMode = filters.paymentMode.toLowerCase() === 'cod' ? 'COD' : 'Prepaid';
       list = list.filter((s) => s.payment.mode === wantMode);
     }
     if (filters.transportMode) {
@@ -289,26 +286,31 @@ export const OrdersPage: React.FC = () => {
   };
 
   /* ─── Row-level handlers ─────────────────────────────────── */
-  const handleShip = (o: Order) =>
-    showToast(`📦 Ship flow opened for order ${o.id}`);
+  const handleShip = (o: Order) => {
+    navigate(`/orders/${o.id}/ship`, { state: { order: o } });
+  };
 
   const handleMarkReady = (s: Shipment) =>
     showToast(`✅ ${s.id} marked ready for pickup`);
 
-  const handlePrintInvoice = (o: { id: string }) =>
-    showToast(`🖨️ Invoice for ${o.id} sent to printer`);
+  const handlePrintInvoice = async (o: any) => {
+    showToast(`🖨️ Generating dynamic invoice for ${o.id}...`);
+    try {
+      generateInvoicePDF([o]);
+      showToast(`✅ Invoice for ${o.id} downloaded successfully`);
+    } catch (err) {
+      console.error(err);
+      showToast(`❌ Failed to generate invoice for ${o.id}`);
+    }
+  };
 
   /* Pending tab's edit flow lands on the dedicated EditForwardOrderPage
      which mirrors the New Order composer with the order's details
      pre-filled. Shipment tabs (post-pending lifecycle) keep their
      "coming soon" toast — editing a shipped order would require a
      correction workflow that isn't in scope. */
-  const handleEditOrder = (o: { id: string }) => {
-    if (activeTab === 'pending') {
-      navigate(`/orders/${o.id}/edit`);
-      return;
-    }
-    showToast(`✏️ Edit ${o.id} — coming soon`);
+  const handleEditOrder = (o: any) => {
+    navigate(`/orders/${o.id}/edit`, { state: { order: o } });
   };
 
   const handleCloneOrder = (o: { id: string }) =>
@@ -374,7 +376,7 @@ export const OrdersPage: React.FC = () => {
     }
 
     /* Input-style edits on the Pending tab — each opens its own modal. */
-    if (action.id === 'update-pickup')  { setBulkPickupOpen(true);  return; }
+    if (action.id === 'update-pickup') { setBulkPickupOpen(true); return; }
     if (action.id === 'update-package') { setBulkPackageOpen(true); return; }
     if (action.id === 'update-payment') { setBulkPaymentOpen(true); return; }
 
@@ -396,10 +398,10 @@ export const OrdersPage: React.FC = () => {
       prev.map((o) =>
         selected.has(o.id)
           ? {
-              ...o,
-              pickupLocation: pickup.id,
-              pickup: { city: pickup.city, pin: pickup.pincode },
-            }
+            ...o,
+            pickupLocation: pickup.id,
+            pickup: { city: pickup.city, pin: pickup.pincode },
+          }
           : o,
       ),
     );
@@ -417,13 +419,13 @@ export const OrdersPage: React.FC = () => {
       prev.map((o) =>
         selected.has(o.id)
           ? {
-              ...o,
-              package: {
-                ...o.package,
-                deadWt: `${weightKg} kg`,
-                dims: `${details.length}×${details.breadth}×${details.height} (cm)`,
-              },
-            }
+            ...o,
+            package: {
+              ...o.package,
+              deadWt: `${weightKg} kg`,
+              dims: `${details.length}×${details.breadth}×${details.height} (cm)`,
+            },
+          }
           : o,
       ),
     );
@@ -449,13 +451,91 @@ export const OrdersPage: React.FC = () => {
     setSelected(new Set());
   };
 
-  const applyBulkConfirm = () => {
+  const applyBulkConfirm = async () => {
     if (!bulkConfirm) return;
-    showToast(
-      `✓ ${bulkConfirm.title} applied to ${selectedCount} ${bulkConfirm.noun ?? 'order'}${selectedCount > 1 ? 's' : ''}`,
-    );
+
+    if (bulkConfirm.actionId === 'ship' && activeTab === 'pending') {
+      const picked = orders.filter((o) => selected.has(o.id));
+      showToast(`📦 Shipping ${picked.length} orders...`);
+
+      let successCount = 0;
+      for (const order of picked) {
+        const success = await ordersApi.shipOrder(order.id);
+        if (success) successCount++;
+      }
+
+      showToast(`✅ ${successCount} out of ${picked.length} orders shipped successfully!`);
+      if (successCount > 0) {
+        setOrders(prev => prev.filter(order => !selected.has(order.id)));
+      }
+    } else if (bulkConfirm.actionId === 'print-invoice') {
+      const picked = activeTab === 'pending'
+        ? orders.filter((o) => selected.has(o.id))
+        : activeShipments.filter((s) => selected.has(s.id));
+      if (picked.length > 0) {
+        showToast(`🖨️ Generating invoices for ${picked.length} items...`);
+        try {
+          generateInvoicePDF(picked);
+          showToast(`✅ Invoices downloaded successfully!`);
+        } catch (err) {
+          console.error(err);
+          showToast(`❌ Failed to generate invoices.`);
+        }
+      }
+    } else {
+      showToast(
+        `✓ ${bulkConfirm.title} applied to ${selectedCount} ${bulkConfirm.noun ?? 'order'}${selectedCount > 1 ? 's' : ''}`,
+      );
+    }
+
     setBulkConfirm(null);
     setSelected(new Set());
+  };
+
+  const handleDownloadReport = () => {
+    showToast('📥 Report download started');
+
+    const isPending = activeTab === 'pending';
+    const list = isPending ? filteredOrders : filteredShipments;
+
+    if (list.length === 0) {
+      showToast('No data to download.');
+      return;
+    }
+
+    let csvContent = "";
+    if (isPending) {
+      csvContent += "Order ID,Date,Time,Channel,Pickup Location,Customer Name,Customer Phone,City,PIN,Product Name,SKU,Quantity,Payment Amount,Payment Mode\n";
+      (list as Order[]).forEach(o => {
+        const row = [
+          o.id, o.date, o.time, o.channel, o.pickupLocation,
+          o.customer.name, o.customer.phone, o.customer.city, o.customer.pin,
+          o.product.name, o.product.sku, o.product.qty,
+          o.payment.amount, o.payment.mode
+        ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(",");
+        csvContent += row + "\n";
+      });
+    } else {
+      csvContent += "Order ID,AWB,Status,Channel,Customer Name,Customer Phone,Delivery City,Delivery PIN,Payment Amount,Payment Mode\n";
+      (list as Shipment[]).forEach(s => {
+        const row = [
+          s.id, s.awb, s.status, s.channel,
+          s.customer.name, s.customer.phone, s.delivery.city, s.delivery.pin,
+          s.payment.amount, s.payment.mode
+        ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(",");
+        csvContent += row + "\n";
+      });
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `orders_report_${activeTab}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   /* Reset all filters back to defaults (used by Clear all + Reset all). */
@@ -483,6 +563,16 @@ export const OrdersPage: React.FC = () => {
           <div className="ord-ph-title">Orders</div>
         </div>
         <div className="ord-ph-r">
+          <button
+            type="button"
+            className="ord-cta ord-cta-s"
+            onClick={() => {
+              window.location.reload();
+            }}
+          >
+            {RefreshIcon}
+            Refresh
+          </button>
           <button
             type="button"
             className="ord-cta ord-cta-p"
@@ -556,7 +646,7 @@ export const OrdersPage: React.FC = () => {
             type="button"
             className="ord-icobtn"
             title="Download report"
-            onClick={() => showToast('📥 Report download started')}
+            onClick={handleDownloadReport}
           >
             {DownloadIcon}
           </button>
@@ -838,27 +928,27 @@ function applyShipmentBucket(
   if (bucket === 'all') return list;
   switch (tab) {
     case 'ready-to-ship':
-      if (bucket === 'stillWaiting')      return list.filter((s) => s.needsAttention);
+      if (bucket === 'stillWaiting') return list.filter((s) => s.needsAttention);
       if (bucket === 'pickupUnscheduled') return list.filter((s) => !s.needsAttention);
       return list;
     case 'ready-to-pickup':
-      if (bucket === 'awaitingPickup')    return list.filter((s) => s.needsAttention);
-      if (bucket === 'pickupReattempt')   return list.filter((s) => s.status === 'pickup-reattempt' || s.status === 'awaiting-scan');
+      if (bucket === 'awaitingPickup') return list.filter((s) => s.needsAttention);
+      if (bucket === 'pickupReattempt') return list.filter((s) => s.status === 'pickup-reattempt' || s.status === 'awaiting-scan');
       return list;
     case 'in-transit':
-      if (bucket === 'slowInMovement')    return list.filter((s) => s.needsAttention);
-      if (bucket === 'outForDelivery')    return list.filter((s) => s.status === 'out-for-delivery');
-      if (bucket === 'reattempted')       return list.filter((s) => s.status === 'delayed');
+      if (bucket === 'slowInMovement') return list.filter((s) => s.needsAttention);
+      if (bucket === 'outForDelivery') return list.filter((s) => s.status === 'out-for-delivery');
+      if (bucket === 'reattempted') return list.filter((s) => s.status === 'delayed');
       return list;
     case 'delivered':
-      if (bucket === 'firstAttempt')      return list.filter((s) => s.status === 'delivered');
-      if (bucket === 'lateDelivery')      return list.filter((s) => s.status === 'failed');
+      if (bucket === 'firstAttempt') return list.filter((s) => s.status === 'delivered');
+      if (bucket === 'lateDelivery') return list.filter((s) => s.status === 'failed');
       return list;
     case 'rto':
-      if (bucket === 'rtoInTransit')      return list.filter((s) => s.status === 'rto-in-transit');
-      if (bucket === 'rtoDelivered')      return list.filter((s) => s.status === 'rto-delivered' || s.status === 'rto-completed');
-      if (bucket === 'rtoInitiated')      return list.filter((s) => s.status === 'rto-initiated');
-      if (bucket === 'rtoCompleted')      return list.filter((s) => s.status === 'rto-completed');
+      if (bucket === 'rtoInTransit') return list.filter((s) => s.status === 'rto-in-transit');
+      if (bucket === 'rtoDelivered') return list.filter((s) => s.status === 'rto-delivered' || s.status === 'rto-completed');
+      if (bucket === 'rtoInitiated') return list.filter((s) => s.status === 'rto-initiated');
+      if (bucket === 'rtoCompleted') return list.filter((s) => s.status === 'rto-completed');
       return list;
     case 'all':
       if (bucket === 'inTransit') {
@@ -867,7 +957,7 @@ function applyShipmentBucket(
         );
       }
       if (bucket === 'delivered') return list.filter((s) => s.status === 'delivered');
-      if (bucket === 'rto')       return list.filter((s) => s.status.startsWith('rto-'));
+      if (bucket === 'rto') return list.filter((s) => s.status.startsWith('rto-'));
       return list;
     default:
       return list;
@@ -880,80 +970,124 @@ function buildShipmentKpiCards(tab: OrderTabId, rows: Shipment[]): KpiCardSpec[]
     case 'ready-to-ship': {
       const k = computeReadyToShipKpis(rows);
       return [
-        { id: 'all',                label: 'Ready to Ship',     value: k.readyToShip,
-          accent: 'ink', icon: 'package' },
-        { id: 'pickupUnscheduled',  label: 'Pickup Unscheduled', value: k.pickupUnscheduled,
-          accent: 'blue', icon: 'clock' },
-        { id: 'stillWaiting',       label: 'Still Waiting',     value: k.stillWaiting,
+        {
+          id: 'all', label: 'Ready to Ship', value: k.readyToShip,
+          accent: 'ink', icon: 'package'
+        },
+        {
+          id: 'pickupUnscheduled', label: 'Pickup Unscheduled', value: k.pickupUnscheduled,
+          accent: 'blue', icon: 'clock'
+        },
+        {
+          id: 'stillWaiting', label: 'Still Waiting', value: k.stillWaiting,
           pill: { label: `Sitting >${k.waitingHours} hrs`, variant: 'warn' },
-          accent: 'amber', icon: 'warn' },
+          accent: 'amber', icon: 'warn'
+        },
       ];
     }
     case 'ready-to-pickup': {
       const k = computeReadyToPickupKpis(rows);
       return [
-        { id: 'all',                label: 'Scheduled for Pickup', value: k.scheduledForPickup,
-          accent: 'ink', icon: 'truck' },
-        { id: 'pickupReattempt',    label: 'Pickup in Reattempt', value: k.pickupReattempt,
-          accent: 'blue', icon: 'clock' },
-        { id: 'awaitingPickup',     label: 'Awaiting Pickup',    value: k.awaitingPickup,
+        {
+          id: 'all', label: 'Scheduled for Pickup', value: k.scheduledForPickup,
+          accent: 'ink', icon: 'truck'
+        },
+        {
+          id: 'pickupReattempt', label: 'Pickup in Reattempt', value: k.pickupReattempt,
+          accent: 'blue', icon: 'clock'
+        },
+        {
+          id: 'awaitingPickup', label: 'Awaiting Pickup', value: k.awaitingPickup,
           pill: { label: `Sitting >${k.waitingHours} hrs`, variant: 'warn' },
-          accent: 'amber', icon: 'warn' },
+          accent: 'amber', icon: 'warn'
+        },
       ];
     }
     case 'in-transit': {
       const k = computeInTransitKpis(rows);
       return [
-        { id: 'all',             label: 'Total Orders In-Transit', value: k.totalInTransit,
-          accent: 'ink', icon: 'route' },
-        { id: 'slowInMovement',  label: 'Slow in Movement',  value: k.slowInMovement,
+        {
+          id: 'all', label: 'Total Orders In-Transit', value: k.totalInTransit,
+          accent: 'ink', icon: 'route'
+        },
+        {
+          id: 'slowInMovement', label: 'Slow in Movement', value: k.slowInMovement,
           pill: { label: `Sitting >${k.waitingHours} hrs`, variant: 'warn' },
-          accent: 'amber', icon: 'warn' },
-        { id: 'reattempted',     label: 'Reattempted',       value: k.reattempted,
-          accent: 'blue', icon: 'clock' },
-        { id: 'outForDelivery',  label: 'Out for Delivery',  value: k.outForDelivery,
-          accent: 'green', icon: 'truck' },
+          accent: 'amber', icon: 'warn'
+        },
+        {
+          id: 'reattempted', label: 'Reattempted', value: k.reattempted,
+          accent: 'blue', icon: 'clock'
+        },
+        {
+          id: 'outForDelivery', label: 'Out for Delivery', value: k.outForDelivery,
+          accent: 'green', icon: 'truck'
+        },
       ];
     }
     case 'delivered': {
       const k = computeDeliveredKpis(rows);
       return [
-        { id: 'all',                label: 'Total Delivered Orders', value: fmtRupees(k.totalValue),
+        {
+          id: 'all', label: 'Total Delivered Orders', value: fmtRupees(k.totalValue),
           sub: `${k.totalCount} Orders`,
-          accent: 'ink', icon: 'total' },
-        { id: 'firstAttempt',       label: 'Delivery in First Attempt', value: k.firstAttempt,
-          accent: 'green', icon: 'check' },
-        { id: 'secondPlusAttempt',  label: 'Delivery in 2+ Attempt',    value: k.secondPlusAttempt,
-          accent: 'blue', icon: 'clock' },
-        { id: 'lateDelivery',       label: 'Late Delivery',             value: k.lateDelivery,
-          accent: 'red', icon: 'fail' },
+          accent: 'ink', icon: 'total'
+        },
+        {
+          id: 'firstAttempt', label: 'Delivery in First Attempt', value: k.firstAttempt,
+          accent: 'green', icon: 'check'
+        },
+        {
+          id: 'secondPlusAttempt', label: 'Delivery in 2+ Attempt', value: k.secondPlusAttempt,
+          accent: 'blue', icon: 'clock'
+        },
+        {
+          id: 'lateDelivery', label: 'Late Delivery', value: k.lateDelivery,
+          accent: 'red', icon: 'fail'
+        },
       ];
     }
     case 'rto': {
       const k = computeRtoKpis(rows);
       return [
-        { id: 'rtoInTransit',  label: 'RTO In Transit', value: k.rtoInTransit,
-          accent: 'blue', icon: 'return' },
-        { id: 'rtoDelivered',  label: 'Delivered',      value: k.rtoDelivered,
-          accent: 'green', icon: 'check' },
-        { id: 'rtoInitiated',  label: 'RTO Initiated',  value: k.rtoInitiated,
-          accent: 'amber', icon: 'warn' },
-        { id: 'rtoCompleted',  label: 'RTO Completed',  value: k.rtoCompleted,
-          accent: 'ink', icon: 'package' },
+        {
+          id: 'rtoInTransit', label: 'RTO In Transit', value: k.rtoInTransit,
+          accent: 'blue', icon: 'return'
+        },
+        {
+          id: 'rtoDelivered', label: 'Delivered', value: k.rtoDelivered,
+          accent: 'green', icon: 'check'
+        },
+        {
+          id: 'rtoInitiated', label: 'RTO Initiated', value: k.rtoInitiated,
+          accent: 'amber', icon: 'warn'
+        },
+        {
+          id: 'rtoCompleted', label: 'RTO Completed', value: k.rtoCompleted,
+          accent: 'ink', icon: 'package'
+        },
       ];
     }
     case 'all': {
       const k = computeAllShipmentKpis(rows);
       return [
-        { id: 'all',        label: 'Total Shipments', value: k.totalShipments,
+        {
+          id: 'all', label: 'Total Shipments', value: k.totalShipments,
           sub: fmtRupees(k.totalValue),
-          accent: 'ink', icon: 'total' },
-        { id: 'inTransit',  label: 'In Transit',      value: k.inTransit,
-          accent: 'blue', icon: 'route' },
-        { id: 'delivered',  label: 'Delivered',       value: k.delivered,
-          accent: 'green', icon: 'check' },
-        { id: 'rto',        label: 'RTO',             value: k.rto,
-          accent: 'red', icon: 'return' },
+          accent: 'ink', icon: 'total'
+        },
+        {
+          id: 'inTransit', label: 'In Transit', value: k.inTransit,
+          accent: 'blue', icon: 'route'
+        },
+        {
+          id: 'delivered', label: 'Delivered', value: k.delivered,
+          accent: 'green', icon: 'check'
+        },
+        {
+          id: 'rto', label: 'RTO', value: k.rto,
+          accent: 'red', icon: 'return'
+        },
       ];
     }
     default:

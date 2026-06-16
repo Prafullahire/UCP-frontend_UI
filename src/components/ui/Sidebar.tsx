@@ -8,6 +8,7 @@ import {
   type NavConfigItem,
   type NavSubItem,
 } from '../../data/navConfig';
+import { ndrApi } from '../../services/ndrApi';
 
 /* Single timing source — mirrors --nav-dur in sidebar.css */
 const NAV_DUR = 200;
@@ -26,6 +27,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onMobileClose }) =
 
   const [open, setOpen] = useState(false);              // desktop hover-expand
   const [openSubId, setOpenSubId] = useState<string | null>(null);
+  const [ndrCount, setNdrCount] = useState<number | null>(null);
+
   const wasOpenRef = useRef(false);
   /* Set when the user click-opens a specific dropdown from the collapsed rail —
    * tells the open-transition effect to keep their choice instead of resetting
@@ -112,6 +115,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onMobileClose }) =
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  /* ─── Fetch dynamic NDR count ────────────────────────────────── */
+  useEffect(() => {
+    const fetchNdrCount = async () => {
+      try {
+        const records = await ndrApi.fetchNdrList({ dateRange: 'last30' });
+        setNdrCount(records.length);
+      } catch (err) {
+        console.error('Failed to fetch NDR count', err);
+      }
+    };
+    fetchNdrCount();
   }, []);
 
   /* Cleanup on unmount */
@@ -201,9 +217,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onMobileClose }) =
       >
         <span className="nav-ico">{item.icon}</span>
         <span className="nav-lbl">{item.label}</span>
-        {item.badge !== undefined && (
+        {(item.badge !== undefined || (item.id === 'ndr' && ndrCount !== null)) && (
           <span className="nav-badge" aria-label={item.badgeAriaLabel ?? `${item.badge}`}>
-            {item.badge}
+            {item.id === 'ndr' && ndrCount !== null ? ndrCount : item.badge}
           </span>
         )}
         <span className="nav-tip" role="tooltip">{item.label}</span>

@@ -4,6 +4,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const reportsApi = {
   async downloadReport(reportName: string): Promise<boolean> {
+    console.log(`Downloading ${reportName}...`);
     await delay(1200); // simulate API download generation
     return true;
   },

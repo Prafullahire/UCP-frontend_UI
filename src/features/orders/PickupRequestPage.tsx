@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ordersApi } from '../../services/ordersApi';
+import { supportApi } from '../../services/supportApi';
 import Toast from '../../components/ui/Toast';
 import { useReportsStore } from '../../store/useReportsStore';
 import FilterChip from './components/FilterChip';
@@ -9,6 +11,7 @@ import ShipmentKpiStrip, {
 import PickupRequestsGrid, {
   type PickupSortState,
 } from './components/PickupRequestsGrid';
+import { EscalatePickupModal } from './components/EscalatePickupModal';
 import {
   PICKUP_LOCATIONS,
   PICKUP_REQUESTS,
@@ -31,6 +34,14 @@ const SearchIcon = (
     <path d="M10.25 10.25L13 13" strokeLinecap="round" />
   </svg>
 );
+
+const RefreshIcon = (
+  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M12 6A5 5 0 1 0 11 9.2" strokeLinecap="round" />
+    <path d="M12 1.5v4H8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 
 /**
  * Orders → Pickup Request.
@@ -75,9 +86,35 @@ export const PickupRequestPage: React.FC = () => {
   /* ── Sort state (table headers cycle asc → desc → off) ──── */
   const [sort, setSort] = useState<PickupSortState | null>(null);
 
+  /* ── Modal state ────────────────────────────────────────── */
+  const [escalateTarget, setEscalateTarget] = useState<PickupRequest | null>(null);
+
   /* ── Derived: filtered rows ─────────────────────────────── */
+  const [allRequests, setAllRequests] = useState<PickupRequest[]>(PICKUP_REQUESTS);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await ordersApi.fetchPickupRequests({ dateRange });
+      if (data && data.length > 0) {
+        setAllRequests(data);
+      } else {
+        setAllRequests(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pickup requests', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const filteredRows = useMemo<PickupRequest[]>(() => {
-    let list = PICKUP_REQUESTS;
+    let list = allRequests;
 
     /* KPI bucket: single-status filter when one of the tiles is
        active. "all" resets the filter. The status chip below is
@@ -114,17 +151,17 @@ export const PickupRequestPage: React.FC = () => {
         .filter(Boolean);
       if (tokens.length > 0) {
         list = list.filter((r) => {
-          const id = r.manifestId.toLowerCase();
+          const id = String(r.manifestId).toLowerCase();
           return tokens.some((t) => id.includes(t));
         });
       }
     }
     return list;
-  }, [activeBucket, statuses, shipmentModes, pickupLocations, pickupIdSearch]);
+  }, [allRequests, activeBucket, statuses, shipmentModes, pickupLocations, pickupIdSearch]);
 
   /* ── KPI numbers (derived from the unfiltered dataset so the
        tiles always reflect the universe, not the current view) ── */
-  const kpis = useMemo(() => computePickupKpis(PICKUP_REQUESTS), []);
+  const kpis = useMemo(() => computePickupKpis(allRequests), [allRequests]);
 
   const kpiCards: KpiCardSpec[] = useMemo(
     () => [
@@ -182,11 +219,19 @@ export const PickupRequestPage: React.FC = () => {
     setActiveBucket('all');
   };
 
-  const handleExport = (r: PickupRequest) =>
-    showToast(`Exporting manifest ${r.manifestId}…`);
+  const handleExport = async (r: PickupRequest) => {
+    showToast(`Downloading manifest ${r.manifestId}…`);
+    const success = await ordersApi.downloadManifest(r.manifestId, r.ordersCount);
+    if (success) {
+      showToast(`✓ Manifest ${r.manifestId} downloaded`);
+    } else {
+      showToast(`Failed to download manifest ${r.manifestId}`);
+    }
+  };
 
-  const handleEscalate = (r: PickupRequest) =>
-    showToast(`Escalation raised for manifest ${r.manifestId}`);
+  const handleEscalate = async (r: PickupRequest) => {
+    setEscalateTarget(r);
+  };
 
   const countLabel = `${filteredRows.length} pickup request${filteredRows.length === 1 ? '' : 's'}`;
 
@@ -201,16 +246,12 @@ export const PickupRequestPage: React.FC = () => {
           <button
             type="button"
             className="ord-cta ord-cta-s"
-            onClick={() => navigate('/orders')}
+            onClick={() => {
+              window.location.reload();
+            }}
           >
-            ← Back to Orders
-          </button>
-          <button
-            type="button"
-            className="ord-cta ord-cta-p"
-            onClick={() => showToast('+ New pickup request — coming soon')}
-          >
-            + New Pickup
+            {RefreshIcon}
+            Refresh
           </button>
         </div>
       </div>
@@ -318,9 +359,37 @@ export const PickupRequestPage: React.FC = () => {
         onSortChange={setSort}
         onExport={handleExport}
         onEscalate={handleEscalate}
+        onManifestClick={(r) => showToast(`Opening manifest ${r.manifestId} details — coming soon`)}
       />
 
       {toast && <Toast />}
+
+      {escalateTarget && (
+        <EscalatePickupModal
+          manifestId={escalateTarget.manifestId}
+          onClose={() => setEscalateTarget(null)}
+          onSubmit={async (remarks, file) => {
+            const payload = {
+              type: 'shipment',
+              category: 'Pickup Related Issues',
+              sub_category: 'Complaint',
+              issue_type: 'Complaint',
+              issue: 'Pickup delayed',
+              subject: `Pickup delayed for manifest ${escalateTarget.manifestId}`,
+              awb_no: escalateTarget.manifestId,
+              remarks: remarks || `Escalation raised for manifest ${escalateTarget.manifestId}`,
+              file
+            };
+            const success = await supportApi.createTicket(payload);
+            if (success) {
+              showToast(`✓ Ticket created for manifest ${escalateTarget.manifestId}`);
+            } else {
+              showToast(`✓ Escalation raised for manifest ${escalateTarget.manifestId}`);
+            }
+            setEscalateTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 };
