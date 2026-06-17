@@ -48,6 +48,10 @@ export const getDateRangeParams = (dateRange?: string) => {
       start.setDate(now.getDate() - 90);
       start.setHours(0, 0, 0, 0);
       break;
+    case 'lifetime':
+      start = new Date(2020, 0, 1);
+      start.setHours(0, 0, 0, 0);
+      break;
     case 'thisMonth':
     case 'this-month':
       start.setDate(1);
@@ -73,14 +77,23 @@ export const getDateRangeParams = (dateRange?: string) => {
       if (dateRange && dateRange.includes('_')) {
         const [startStr, endStr] = dateRange.split('_');
         if (startStr && endStr) {
-          const [sDay, sMonth, sYear] = startStr.split('-');
-          const [eDay, eMonth, eYear] = endStr.split('-');
-          
-          const sY = sYear ? (sYear.length === 2 ? 2000 + parseInt(sYear) : parseInt(sYear)) : now.getFullYear();
-          start = new Date(sY, parseInt(sMonth) - 1, parseInt(sDay), 0, 0, 0, 0);
+          if (startStr.length === 10 && startStr.charAt(4) === '-') {
+            // YYYY-MM-DD format from custom calendar
+            const [sYear, sMonth, sDay] = startStr.split('-');
+            const [eYear, eMonth, eDay] = endStr.split('-');
+            start = new Date(parseInt(sYear), parseInt(sMonth) - 1, parseInt(sDay), 0, 0, 0, 0);
+            end = new Date(parseInt(eYear), parseInt(eMonth) - 1, parseInt(eDay), 23, 59, 59, 999);
+          } else {
+            // Legacy DD-MM-YYYY or DD-MM format
+            const [sDay, sMonth, sYear] = startStr.split('-');
+            const [eDay, eMonth, eYear] = endStr.split('-');
+            
+            const sY = sYear ? (sYear.length === 2 ? 2000 + parseInt(sYear) : parseInt(sYear)) : now.getFullYear();
+            start = new Date(sY, parseInt(sMonth) - 1, parseInt(sDay), 0, 0, 0, 0);
 
-          const eY = eYear ? (eYear.length === 2 ? 2000 + parseInt(eYear) : parseInt(eYear)) : now.getFullYear();
-          end = new Date(eY, parseInt(eMonth) - 1, parseInt(eDay), 23, 59, 59, 999);
+            const eY = eYear ? (eYear.length === 2 ? 2000 + parseInt(eYear) : parseInt(eYear)) : now.getFullYear();
+            end = new Date(eY, parseInt(eMonth) - 1, parseInt(eDay), 23, 59, 59, 999);
+          }
         } else {
           return {};
         }

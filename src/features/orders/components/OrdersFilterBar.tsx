@@ -44,7 +44,7 @@ export interface OrdersFilterState {
 export type PendingFilterState = OrdersFilterState;
 
 export const initialPendingFilters: OrdersFilterState = {
-  dateRange: '17-03_16-04',
+  dateRange: 'last30',
   pickupLocations: [],
   paymentMode: null,
   channels: [],
@@ -129,7 +129,7 @@ export const OrdersFilterBar: React.FC<OrdersFilterBarProps> = ({
       label={dateChipCfg.label}
       options={dateChipCfg.options}
       value={state.dateRange}
-      onChange={(v) => set('dateRange', v ?? '17-03_16-04')}
+      onChange={(v) => set('dateRange', v ?? 'last30')}
     />
   );
 

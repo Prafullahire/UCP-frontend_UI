@@ -16,7 +16,9 @@ export const DATE_RANGE_OPTIONS: FilterOption[] = [
   { id: 'yesterday',   label: 'Yesterday' },
   { id: 'last7',       label: 'Last 7 Days' },
   { id: 'last30',      label: 'Last 30 Days' },
-  { id: '17-03_16-04', label: '17/03 – 16/04/2025' },
+  { id: 'thisMonth',   label: 'This Month' },
+  { id: 'lastMonth',   label: 'Last Month' },
+  { id: 'lifetime',    label: 'Life Time' },
   { id: 'custom',      label: 'Custom Range' },
 ];
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
 import StackedBar from '../components/StackedBar';
@@ -45,7 +45,17 @@ const RECOVERY_ACTIONS = [
 ];
 
 export const RtoTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Last Week' }) => {
-  const m = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  const getFilterMultiplier = (filterId: string) => {
+    if (filterId === 'all') return 1;
+    const hash = filterId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return 0.4 + (hash % 50) / 100;
+  };
+
+  const dateM = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+  const filterM = getFilterMultiplier(activeFilter);
+  const m = dateM * filterM;
 
   /* Single-bar trend grouped chart */
   const trendSlots = RTO_TREND.map((tm) => ({
@@ -65,7 +75,7 @@ export const RtoTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Last W
 
   return (
     <div className="d-fade">
-      <FilterBar chips={RTO_FILTERS} />
+      <FilterBar chips={RTO_FILTERS} onFilterChange={setActiveFilter} />
 
       {/* ── Fold 1 — Overview | Revenue Impact | Top Pincodes (3-col) ── */}
       <div className="row-3">

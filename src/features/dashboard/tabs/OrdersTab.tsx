@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useReportsStore } from '../../../store/useReportsStore';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
 import StackedBar from '../components/StackedBar';
@@ -47,12 +49,25 @@ const DELAY_SEGMENTS = [
 ];
 
 export const OrdersTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Last Week' }) => {
-  const m = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+  const navigate = useNavigate();
+  const showToast = useReportsStore(s => s.showToast);
+  const [activeFilter, setActiveFilter] = useState('all');
+  
+  const getFilterMultiplier = (filterId: string) => {
+    if (filterId === 'all') return 1;
+    const hash = filterId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return 0.4 + (hash % 50) / 100;
+  };
+  
+  const dateM = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+  const filterM = getFilterMultiplier(activeFilter);
+  const m = dateM * filterM;
+
   const netRev = (NET_REVENUE.del - NET_REVENUE.rto - NET_REVENUE.ship - NET_REVENUE.pen) * m;
 
   return (
     <div className="d-fade">
-      <FilterBar chips={ORDERS_FILTERS} />
+      <FilterBar chips={ORDERS_FILTERS} onFilterChange={setActiveFilter} />
 
       {/* ── Top two folds share a single 3-col grid so column edges align ──
          Row 1: [ Upcoming Pickups (span 2) ][ Net Revenue ]
@@ -67,7 +82,6 @@ export const OrdersTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Las
                 <div className="w-title">Upcoming Pickups</div>
                 <div className="w-sub">{PICKUPS.length} scheduled</div>
               </div>
-              <button type="button" className="cta cta-s" style={{ margin: 0 }}>+ Create Pickup</button>
             </div>
           }
         >
@@ -92,7 +106,19 @@ export const OrdersTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Las
                     <td style={{ color: 'var(--ink2)' }}>{p.loc}</td>
                     <td>
                       {p.st === 'overdue' && (
-                        <button type="button" className="cta cta-p" style={{ margin: 0 }}>Reschedule</button>
+                        <button 
+                          type="button" 
+                          className="cta cta-p" 
+                          style={{ margin: 0 }}
+                          onClick={() => {
+                            showToast(`Rescheduling pickup for ${p.id}...`);
+                            setTimeout(() => {
+                              navigate('/orders/pickup-request');
+                            }, 500);
+                          }}
+                        >
+                          Reschedule
+                        </button>
                       )}
                     </td>
                   </tr>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Card from '../components/Card';
 import KpiCard from '../components/KpiCard';
 import RankedRow from '../components/RankedRow';
@@ -33,7 +33,17 @@ const NDR_FILTERS = [
 ];
 
 export const NdrTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Last Week' }) => {
-  const m = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  const getFilterMultiplier = (filterId: string) => {
+    if (filterId === 'all') return 1;
+    const hash = filterId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return 0.4 + (hash % 50) / 100;
+  };
+
+  const dateM = datePreset === 'Last 2 Weeks' ? 2 : datePreset === 'Last Month' ? 4 : datePreset === 'Last Quarter' ? 12 : 1;
+  const filterM = getFilterMultiplier(activeFilter);
+  const m = dateM * filterM;
 
   /* Pre-compute grouped-bar slot heights for the NDR Status weekly chart */
   const ndrStatusSlots = NDR_STATUS.map((w) => ({
@@ -48,7 +58,7 @@ export const NdrTab: React.FC<{ datePreset?: string }> = ({ datePreset = 'Last W
 
   return (
     <div className="d-fade">
-      <FilterBar chips={NDR_FILTERS} />
+      <FilterBar chips={NDR_FILTERS} onFilterChange={setActiveFilter} />
 
       {/* ── KPI strip (5-col) — Action Required first, hugged height ── */}
       <div className="kpi-grid kpi-grid-5" style={{ marginBottom: 16 }}>
